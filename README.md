@@ -1,125 +1,333 @@
-# SleepBar (Private Repository)
+# SleepBar - Private Development Repository
 
-A beautiful sleep timer for macOS.
+A simple and elegant sleep timer for macOS. Set your Mac to sleep after a duration or at a specific time.
 
-## 🔒 This is a Private Repository
+**⚠️ This is the private development repository. The public website is at [zcpnate/sleepbar](https://github.com/zcpnate/sleepbar).**
 
-- **Source Code**: Kept private for security
-- **Website & Releases**: https://github.com/zcpnate/sleepbar (public)
-- **Marketing Site**: https://sleepbar.app
+---
+
+## 🚀 Publishing a New Release
+
+### 1. Update Version Numbers
+
+In Xcode:
+1. Select **SleepBar** target → **General** tab
+2. Update **Version** (e.g., `1.0.1`)
+3. Update **Build** (increment by 1)
+
+Or in Build Settings:
+- `MARKETING_VERSION` = `1.0.1`
+- `CURRENT_PROJECT_VERSION` = `2`
+
+### 2. Update Changelog
+
+Edit `sleepbar-website/CHANGELOG.md` (the website automatically parses this file):
+```markdown
+## [1.0.1] - 2025-11-15
+
+### Added
+- New feature description
+
+### Fixed
+- Bug fix description
+
+### Changed
+- Changed behavior description
+```
+
+**Note**: The website will automatically display your changelog entries. No need to edit HTML!
+
+### 3. Build & Archive
+
+In Xcode:
+1. **Product** → **Archive**
+2. **Distribute App** → **Developer ID**
+3. **Upload** (this notarizes with Apple)
+4. Wait for notarization (5-30 minutes)
+5. **Export Notarized App**
+
+### 4. Create DMG
+
+```bash
+# Create DMG
+hdiutil create -volname "SleepBar" -srcfolder /path/to/SleepBar.app -ov -format UDZO ~/Desktop/SleepBar-1.0.1.dmg
+
+# Sign DMG
+codesign --sign "Developer ID Application: Your Name" ~/Desktop/SleepBar-1.0.1.dmg
+
+# Verify signature
+codesign -vvv --deep --strict ~/Desktop/SleepBar-1.0.1.dmg
+spctl -a -vvv -t install ~/Desktop/SleepBar-1.0.1.dmg
+```
+
+### 5. Create GitHub Release
+
+**Option A: Via GitHub CLI**
+```bash
+gh release create v1.0.1 \
+  --repo zcpnate/sleepbar \
+  --title "SleepBar 1.0.1" \
+  --notes "$(cat sleepbar-website/CHANGELOG.md | sed -n '/## \[1.0.1\]/,/## \[/p' | sed '$d')" \
+  ~/Desktop/SleepBar-1.0.1.dmg
+```
+
+**Option B: Via GitHub Web Interface**
+1. Go to https://github.com/zcpnate/sleepbar/releases
+2. Click **Draft a new release**
+3. Tag: `v1.0.1`
+4. Release title: `SleepBar 1.0.1`
+5. Copy release notes from CHANGELOG.md
+6. Upload `SleepBar-1.0.1.dmg`
+7. Click **Publish release**
+
+### 6. Generate Sparkle Appcast
+
+```bash
+# Go to website repo
+cd "/Users/nofarrell/Library/Mobile Documents/com~apple~CloudDocs/Documents/SleepBar/sleepbar-website"
+
+# Download the release DMG
+wget https://github.com/zcpnate/sleepbar/releases/download/v1.0.1/SleepBar-1.0.1.dmg
+
+# Generate appcast (finds Sparkle binary automatically)
+~/Library/Developer/Xcode/DerivedData/SleepBar-*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast .
+
+# Or if you have Sparkle installed globally:
+/path/to/Sparkle/bin/generate_appcast .
+
+# Commit and push
+git add appcast.xml *.delta
+git commit -m "Update appcast for v1.0.1"
+git push
+```
+
+### 7. Update Website (Optional)
+
+The changelog updates automatically from `CHANGELOG.md`. Only update the website if you changed:
+- Features section
+- Pricing
+- Hero text
+- Download links
+
+```bash
+cd sleepbar-website
+# Edit index.html
+git add index.html
+git commit -m "Update website content for v1.0.1"
+git push
+```
+
+### 8. Test the Update
+
+1. Download previous version from releases
+2. Install and run it
+3. Click "Check for Updates" in the app
+4. Verify update downloads and installs correctly
+
+---
 
 ## 🛠️ Development Setup
 
-### Prerequisites
+### Requirements
 - Xcode 15.0+
-- macOS 14.0+
-- Swift 5.9+
+- macOS 14.0+ (Sonoma or later)
+- Apple Developer Program membership (for distribution)
+- Sparkle framework (added via Swift Package Manager)
 
-### Getting Started
+### First Time Setup
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/zcpnate/sleepbar-private.git
-   cd sleepbar-private
-   ```
-
-2. **Open in Xcode**
-   ```bash
-   open SleepBar.xcodeproj
-   ```
-
-3. **Add Sparkle Framework**
-   - File → Add Packages...
-   - Enter: `https://github.com/sparkle-project/Sparkle`
-   - See `SPARKLE_SETUP.md` for details
-
-4. **Configure Signing**
-   - Select your development team in project settings
-   - Update bundle identifier if needed
-
-### Building
-
 ```bash
-# Debug build
-xcodebuild -project SleepBar.xcodeproj -scheme SleepBar -configuration Debug
-
-# Release build (Archive)
-# Use Xcode: Product → Archive
+git clone https://github.com/zcpnate/sleepbar-private.git
+cd sleepbar-private
 ```
 
-## 🎯 Features
+2. **Open in Xcode**
+```bash
+open SleepBar/SleepBar.xcodeproj
+```
 
-- ⏱️ Quick timer presets (15m, 30m, 1h, 2h)
-- 🎯 Custom duration timers
-- 🕐 Specific time scheduling
-- 💻 System or display-only sleep modes
-- ⚠️ Pre-sleep warning (1 min before)
-- 🔑 7-day trial with Lemon Squeezy licensing
-- 🔄 Sparkle auto-updates
+3. **Configure Signing**
+   - Select **SleepBar** target
+   - Go to **Signing & Capabilities**
+   - Select your **Developer ID Application** certificate
+   - Ensure **App Sandbox** is OFF (required for `pmset` commands)
 
-## 📋 Architecture
+4. **Add Sparkle Framework** (if not already added)
+   - File → Add Packages...
+   - URL: `https://github.com/sparkle-project/Sparkle`
+   - Version: `2.0.0` - `3.0.0`
+   - Add to SleepBar target
 
-### Key Components
+5. **Generate Sparkle Keys** (first time only)
+```bash
+cd ~/Library/Developer/Xcode/DerivedData/SleepBar-*/SourcePackages/artifacts/sparkle/Sparkle/bin/
+./generate_keys
+```
 
-- **SleepTimerManager**: Core timer logic and sleep execution
-- **LicenseManager**: Lemon Squeezy integration & trial management
-- **SparkleHelper**: Auto-update functionality
-- **ContentView**: Main menu bar UI
-- **SleepWarningView**: Pre-sleep alert window
+Save the private key in Keychain! Add the public key to `Info.plist`:
+- Key: `SUPublicEDKey`
+- Value: Your public key from above
 
-### Technologies
+6. **Configure Info.plist**
 
-- **SwiftUI**: UI framework
-- **Combine**: Reactive programming
-- **Sparkle 2**: Auto-updates
-- **Lemon Squeezy API**: Licensing
-- **IOKit**: System/display sleep
+Add these keys (if not already present):
+- `SUFeedURL`: `https://sleepbar.app/appcast.xml`
+- `SUPublicEDKey`: Your Sparkle public key
+- `CFBundleShortVersionString`: `1.0.0`
+- `CFBundleVersion`: `1`
 
-## 🧪 Testing
+### Running Locally
 
-### Developer Tools (DEBUG builds only)
+```bash
+# Build and run
+cmd+R in Xcode
 
-Press `⌘⇧D` or access via menu to open developer tools:
-- Reset trial period
-- Generate test license keys
-- Expire trial (test lock screen)
-- View license status
+# Or via command line
+xcodebuild -project SleepBar/SleepBar.xcodeproj -scheme SleepBar -configuration Debug
+```
 
-## 🚀 Release Process
+---
 
-See `RELEASE.md` for detailed release instructions.
+## 🧪 Testing Licensing
 
-Quick overview:
-1. Update version in Info.plist
-2. Archive via Xcode
-3. Export with Developer ID
-4. Create release in public repo
-5. Generate and upload appcast
+### Developer Tools (Debug Builds Only)
 
-## 📝 Documentation
+In debug builds, you have access to developer tools:
+- **Cmd+Shift+D** or click "Developer Tools" in the menu
 
-- `SPARKLE_SETUP.md` - Auto-update configuration
-- `RELEASE.md` - Release process
-- `ARCHITECTURE.md` - Code architecture (TODO)
+Available actions:
+- **Reset Trial**: Start a fresh 7-day trial
+- **Expire Trial**: Set trial to expired (for testing post-trial UX)
+- **Generate Test Key**: Create a fake license key (doesn't work with Lemon Squeezy API)
+- **Deactivate License**: Remove current license
 
-## 🔐 Security Notes
+### Testing with Real Lemon Squeezy License
 
-### Never Commit:
-- Lemon Squeezy API keys
-- Sparkle private signing keys
-- Keychain files
-- Developer certificates
+1. Create a test product in Lemon Squeezy (sandbox mode)
+2. Purchase a license
+3. Use the real license key in the app
+4. Test activation, validation, and deactivation
 
-### Keep in Keychain:
-- Sparkle EdDSA private key
-- Apple Developer certificates
+---
 
-## 📧 Support
+## 📁 Project Structure
 
-For issues or questions:
+```
+SleepBar/
+├── SleepBar/
+│   ├── SleepBarApp.swift          # App entry point
+│   ├── ContentView.swift          # Main menu UI
+│   ├── MenuBarLabel.swift         # Menu bar icon/label
+│   ├── SleepTimerManager.swift    # Timer logic
+│   ├── SleepWarningView.swift     # Warning popup content
+│   ├── SleepWarningWindow.swift   # Warning window manager
+│   ├── AboutView.swift            # About window
+│   ├── LicenseManager.swift       # Trial & licensing
+│   ├── LicenseView.swift          # License activation UI
+│   ├── DevMenuView.swift          # Developer tools (debug only)
+│   ├── SparkleHelper.swift        # Sparkle auto-update wrapper
+│   └── Assets.xcassets/           # App icon & resources
+├── SleepBar.xcodeproj/            # Xcode project
+├── docs/
+│   └── SETUP_GUIDE.md             # Initial setup instructions
+└── README.md                      # This file
+```
+
+---
+
+## 🔐 Security & Signing
+
+### Developer ID Certificate
+
+Required for distributing outside Mac App Store:
+1. Join Apple Developer Program ($99/year)
+2. Xcode → Settings → Accounts → Manage Certificates
+3. Add **Developer ID Application** certificate
+
+### Hardened Runtime
+
+Already enabled in project settings:
+- Required for notarization
+- Library validation disabled (for Sparkle framework)
+
+### Notarization
+
+Automatic when you:
+- Archive with Developer ID certificate
+- Choose "Upload" during distribution
+- Wait 5-30 minutes for Apple's approval
+
+### What NOT to Commit
+
+Never commit to this repository:
+- ❌ Sparkle private signing key (store in Keychain)
+- ❌ Apple Developer certificates (managed by Xcode)
+- ❌ Lemon Squeezy API keys (hardcoded in app, OK for this use case)
+- ❌ Test license keys (generate as needed)
+
+---
+
+## 🔗 Related Repositories
+
+- **Public Website**: https://github.com/zcpnate/sleepbar (public)
+- **This Repo**: https://github.com/zcpnate/sleepbar-private (private)
+
+---
+
+## 🌐 Important URLs
+
+| Service | URL |
+|---------|-----|
+| Website | https://sleepbar.app |
+| Public Repo | https://github.com/zcpnate/sleepbar |
+| Private Repo | https://github.com/zcpnate/sleepbar-private |
+| Releases | https://github.com/zcpnate/sleepbar/releases |
+| Appcast | https://sleepbar.app/appcast.xml |
+| Lemon Squeezy | https://app.lemonsqueezy.com |
+
+---
+
+## 📚 Documentation
+
+- **README.md** (this file) - Development & release guide
+- **[docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)** - One-time initial setup instructions
+
+---
+
+## 🆘 Troubleshooting
+
+### "Unable to obtain a task name port right" Warning
+- Harmless warning from macOS sandbox system
+- Doesn't affect functionality
+- Can be ignored
+
+### Sparkle Updates Not Working
+- Verify `SUFeedURL` in Info.plist
+- Check appcast.xml is accessible at https://sleepbar.app/appcast.xml
+- Ensure DMG is signed and notarized
+
+### License Activation Failing
+- Check Lemon Squeezy API endpoint is correct
+- Verify product is published (not in draft)
+- Test with a real purchase in sandbox mode
+
+### pmset Commands Not Working
+- Verify App Sandbox is **OFF** in project settings
+- Check `ENABLE_APP_SANDBOX = NO` in project.pbxproj
+
+---
+
+## 📧 Contact
+
 - Email: nate@sleepbar.app
-- Website: https://sleepbar.app
+- GitHub: [@zcpnate](https://github.com/zcpnate)
+
+---
 
 ## 📄 License
 
-Proprietary - All Rights Reserved © 2025 Nate O'Farrell
+© 2025 Nate O'Farrell. All rights reserved.
+
+This is proprietary software. Source code is private.
+
