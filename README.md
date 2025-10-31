@@ -320,7 +320,7 @@ Never commit to this repository:
 
 ## 📧 Contact
 
-- Email: nate@sleepbar.app
+- Email: hi@sleepbar.app
 - GitHub: [@zcpnate](https://github.com/zcpnate)
 
 ---
