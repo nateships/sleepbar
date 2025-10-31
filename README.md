@@ -6,7 +6,7 @@ A beautiful sleep timer for macOS.
 
 - **Source Code**: Kept private for security
 - **Website & Releases**: https://github.com/zcpnate/sleepbar (public)
-- **Marketing Site**: https://zcpnate.github.io/sleepbar (or sleepbar.app)
+- **Marketing Site**: https://sleepbar.app
 
 ## 🛠️ Development Setup
 
