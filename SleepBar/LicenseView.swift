@@ -12,6 +12,7 @@ struct LicenseView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var licenseKey = ""
+    @State private var email = ""
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var isActivating = false
@@ -51,17 +52,32 @@ struct LicenseView: View {
             
             // Form
             VStack(alignment: .leading, spacing: 16) {
-                Text("Enter your license key from your purchase email")
+                Text("Enter your license key and email from your purchase")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
                 
-                VStack(alignment: .leading, spacing: 6) {
-                    TextField("Enter license key", text: $licenseKey)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 14, design: .monospaced))
-                        .disableAutocorrection(true)
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Email")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("email@example.com", text: $email)
+                            .textFieldStyle(.roundedBorder)
+                            .textContentType(.emailAddress)
+                            .disableAutocorrection(true)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("License Key")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("XXXX-XXXX-XXXX-XXXX", text: $licenseKey)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 14, design: .monospaced))
+                            .disableAutocorrection(true)
+                    }
                 }
                 .padding(.horizontal, 30)
                 
@@ -87,7 +103,7 @@ struct LicenseView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(licenseKey.isEmpty || isActivating)
+                .disabled(licenseKey.isEmpty || email.isEmpty || isActivating)
                 
                 HStack(spacing: 20) {
                     Button("Purchase License") {
@@ -108,7 +124,7 @@ struct LicenseView: View {
             .padding(.horizontal, 30)
             .padding(.bottom, 20)
         }
-        .frame(width: 400, height: 400)
+        .frame(width: 400, height: 450)
     }
     
     private func activateLicense() {
@@ -116,7 +132,7 @@ struct LicenseView: View {
         isActivating = true
         
         Task {
-            let result = await licenseManager.activateLicense(key: licenseKey)
+            let result = await licenseManager.activateLicense(key: licenseKey, email: email)
             
             await MainActor.run {
                 isActivating = false
