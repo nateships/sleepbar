@@ -34,6 +34,9 @@ struct SleepWarningView: View {
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.orange)
+                Text("at \(timerManager.targetTimeText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             
             // Sleep Mode Info

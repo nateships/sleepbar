@@ -26,6 +26,13 @@ class SleepTimerManager: ObservableObject {
     private var hasShownWarning = false
     private let warningThreshold: TimeInterval = 60 // 1 minute
     
+    var targetTimeText: String {
+        guard let endDate = endDate else { return "" }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: endDate)
+    }
+    
     func startTimer(minutes: Int) {
         startTimer(seconds: TimeInterval(minutes * 60))
     }
@@ -134,6 +141,9 @@ class SleepTimerManager: ObservableObject {
     }
     
     private func executeSleep() {
+        // Hide the warning window before sleeping
+        SleepWarningWindow.shared.hide()
+        
         switch sleepMode {
         case .system:
             putSystemToSleep()

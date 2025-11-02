@@ -86,10 +86,53 @@ struct ContentView: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
                 
+                Text("Sleep at \(timerManager.targetTimeText)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                
                 Label(timerManager.sleepMode.rawValue, systemImage: timerManager.sleepMode == .system ? "power" : "display")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .padding(.vertical, 8)
+            
+            Divider()
+                .padding(.horizontal, 16)
+            
+            // Quick Extension Buttons
+            VStack(spacing: 8) {
+                Text("Extend Timer")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                HStack(spacing: 8) {
+                    Button("+5m") {
+                        timerManager.snoozeTimer(minutes: 5)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    
+                    Button("+10m") {
+                        timerManager.snoozeTimer(minutes: 10)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    
+                    Button("+30m") {
+                        timerManager.snoozeTimer(minutes: 30)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    
+                    Button("+1h") {
+                        timerManager.snoozeTimer(minutes: 60)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                }
+            }
+            .padding(.horizontal, 16)
             .padding(.vertical, 8)
             
             Divider()
@@ -160,9 +203,14 @@ struct ContentView: View {
                             Text(option.label)
                                 .font(.callout)
                                 .fontWeight(.semibold)
+                            if licenseManager.isLicensed || licenseManager.isTrialActive {
+                                Text(targetTimeForMinutes(option.minutes))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 60)
+                        .frame(height: 70)
                         .background((licenseManager.isLicensed || licenseManager.isTrialActive) ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15))
                         .foregroundStyle((licenseManager.isLicensed || licenseManager.isTrialActive) ? .blue : .secondary)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -378,44 +426,57 @@ struct ContentView: View {
     }
     
     private var durationInputFields: some View {
-        HStack(spacing: 12) {
-            VStack(spacing: 4) {
-                TextField("0", text: $hoursText)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.center)
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .frame(width: 70, height: 50)
-                    .background(Color.blue.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .onChange(of: hoursText) { _, newValue in
-                        hoursText = filterNumeric(newValue, max: 23)
-                    }
-                Text("hours")
-                    .font(.caption)
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                VStack(spacing: 4) {
+                    TextField("0", text: $hoursText)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .frame(width: 70, height: 50)
+                        .background(Color.blue.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .onChange(of: hoursText) { _, newValue in
+                            hoursText = filterNumeric(newValue, max: 23)
+                        }
+                    Text("hours")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Text(":")
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(.secondary)
+                
+                VStack(spacing: 4) {
+                    TextField("15", text: $minutesText)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .frame(width: 70, height: 50)
+                        .background(Color.blue.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .onChange(of: minutesText) { _, newValue in
+                            minutesText = filterNumeric(newValue, max: 59)
+                        }
+                    Text("minutes")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .frame(maxWidth: .infinity)
             
-            Text(":")
-                .font(.system(size: 28, weight: .bold))
+            // Target time display
+            if isCustomTimerValid {
+                HStack(spacing: 4) {
+                    Image(systemName: "clock")
+                        .font(.caption2)
+                    Text("Sleep at \(targetTimeForCustomDuration())")
+                        .font(.caption)
+                }
                 .foregroundStyle(.secondary)
-            
-            VStack(spacing: 4) {
-                TextField("15", text: $minutesText)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.center)
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .frame(width: 70, height: 50)
-                    .background(Color.blue.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .onChange(of: minutesText) { _, newValue in
-                        minutesText = filterNumeric(newValue, max: 59)
-                    }
-                Text("minutes")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
-        .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
     }
     
@@ -535,6 +596,23 @@ struct ContentView: View {
             let finalDate = targetDate <= Date() ? Calendar.current.date(byAdding: .day, value: 1, to: targetDate) ?? targetDate : targetDate
             timerManager.startTimer(until: finalDate)
         }
+    }
+    
+    private func targetTimeForMinutes(_ minutes: Int) -> String {
+        let targetDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: targetDate)
+    }
+    
+    private func targetTimeForCustomDuration() -> String {
+        let hours = Int(hoursText) ?? 0
+        let minutes = Int(minutesText) ?? 0
+        let totalSeconds = TimeInterval(hours * 3600 + minutes * 60)
+        let targetDate = Date().addingTimeInterval(totalSeconds)
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: targetDate)
     }
 }
 

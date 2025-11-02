@@ -19,6 +19,10 @@ struct MenuBarLabel: View {
                 Text(timerManager.timeRemainingText)
                     .monospacedDigit()
                     .font(.system(size: 12))
+                Text("•")
+                    .font(.system(size: 10))
+                Text(timerManager.targetTimeText)
+                    .font(.system(size: 12))
             }
         }
     }
