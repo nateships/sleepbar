@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct LicenseView: View {
     @ObservedObject var licenseManager = LicenseManager.shared
@@ -125,6 +126,19 @@ struct LicenseView: View {
             .padding(.bottom, 20)
         }
         .frame(width: 400, height: 450)
+        .onAppear {
+            activateWindow()
+        }
+    }
+    
+    private func activateWindow() {
+        DispatchQueue.main.async {
+            if let window = NSApplication.shared.windows.first(where: { $0.title == "Activate SleepBar" }) {
+                window.level = .floating
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
     }
     
     private func activateLicense() {

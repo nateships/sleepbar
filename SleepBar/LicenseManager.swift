@@ -278,7 +278,11 @@ class LicenseManager: ObservableObject {
                 self.customerName = customerName
                 self.customerEmail = customerEmail
                 
-                if !self.isLicensed {
+                if self.isLicensed {
+                    // Clear trial status when licensed
+                    self.isTrialActive = false
+                    self.daysRemainingInTrial = 0
+                } else {
                     self.checkTrialStatus()
                 }
             }

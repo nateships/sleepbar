@@ -7,6 +7,7 @@
 
 #if DEBUG
 import SwiftUI
+import AppKit
 
 struct DevMenuView: View {
     @ObservedObject private var licenseManager = LicenseManager.shared
@@ -167,6 +168,19 @@ struct DevMenuView: View {
             .padding(.bottom, 20)
         }
         .frame(width: 400, height: 600)
+        .onAppear {
+            activateWindow()
+        }
+    }
+    
+    private func activateWindow() {
+        DispatchQueue.main.async {
+            if let window = NSApplication.shared.windows.first(where: { $0.title == "Developer Tools" }) {
+                window.level = .floating
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
     }
     
     private func showMessageAlert(_ msg: String) {
