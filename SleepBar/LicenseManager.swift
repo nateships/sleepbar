@@ -26,8 +26,8 @@ class LicenseManager: ObservableObject {
     
     // CRITICAL: Set these to your actual Lemon Squeezy IDs
     // Get these from your Lemon Squeezy dashboard
-    private let expectedStoreId = 123456  // TODO: Replace with your actual store ID
-    private let expectedProductId = 123456  // TODO: Replace with your actual product ID
+    private let expectedStoreId = 237783  // TODO: Replace with your actual store ID
+    private let expectedProductId = 681433  // TODO: Replace with your actual product ID
     // Optional: Set this if you want to validate specific variant
     private let expectedVariantId: Int? = nil  // TODO: Replace with variant ID if needed
     
