@@ -144,34 +144,47 @@ This will:
 
 ## 🚀 Creating Your First Release
 
-### 1. Build & Archive
+### 1. Build & Archive in Xcode
 
 In Xcode:
 1. **Product → Archive**
 2. **Distribute App → Developer ID**
 3. **Upload** (notarizes with Apple, wait 5-30 minutes)
 4. **Export Notarized App**
+5. Copy exported `SleepBar.app` to the releases directory
 
-### 2. Create DMG
+### 2. Create DMG with Build Script
 
 ```bash
-# Create and sign DMG
-hdiutil create -volname "SleepBar" -srcfolder /path/to/SleepBar.app -ov -format UDZO ~/Desktop/SleepBar-1.0.0.dmg
-codesign --sign "Developer ID Application: Your Name" ~/Desktop/SleepBar-1.0.0.dmg
+# Navigate to releases directory
+cd "/Users/nofarrell/Library/Mobile Documents/com~apple~CloudDocs/Documents/SleepBar/SleepBar/releases"
 
-# Verify
-codesign -vvv --deep --strict ~/Desktop/SleepBar-1.0.0.dmg
-spctl -a -vvv -t install ~/Desktop/SleepBar-1.0.0.dmg
+# Place your exported SleepBar.app here
+# Then run the build script:
+./build_release.sh 1.0.0
 ```
+
+The script will:
+- ✓ Create a temp directory (`build/tmp`)
+- ✓ Copy your app
+- ✓ Add Applications folder symlink
+- ✓ Create and sign the DMG
+- ✓ Verify signatures
+- ✓ Clean up temp files
+
+Output: `releases/build/SleepBar-1.0.0.dmg`
+
+**Pro tip:** When users open the DMG, they'll see your app and an Applications folder link. They can drag SleepBar to Applications for easy installation.
 
 ### 3. Create GitHub Release
 
 ```bash
+# From releases directory
 gh release create v1.0.0 \
   --repo zcpnate/sleepbar \
   --title "SleepBar 1.0.0 - Initial Release" \
   --notes "🎉 Initial release of SleepBar!" \
-  ~/Desktop/SleepBar-1.0.0.dmg
+  build/SleepBar-1.0.0.dmg
 ```
 
 ### 4. Generate Appcast

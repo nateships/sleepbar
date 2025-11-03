@@ -1,61 +1,30 @@
 # Xcode
-*.xcodeproj/*
-!*.xcodeproj/project.pbxproj
-!*.xcodeproj/xcshareddata/
-!*.xcodeproj/project.xcworkspace/
-*.xcworkspace/*
-!*.xcworkspace/contents.xcworkspacedata
-!*.xcworkspace/xcshareddata/
-
-# User-specific files
+xcuserdata/
 *.xcuserstate
-*.xcuserdatad/
-
-# Build products
-build/
 DerivedData/
-*.ipa
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Build artifacts
+build/
 *.app
 *.dSYM.zip
 *.dSYM
 
+# Release temporary files (keep version directories and DMGs)
+releases/build/
+
 # Swift Package Manager
 .swiftpm/
-.build/
-
-# Secrets (IMPORTANT!)
-*.keychain
-*.p12
-.env
-secrets.json
-LemonSqueezyConfig.plist
-Config.plist
+*.xcworkspace
+!SleepBar.xcodeproj/project.xcworkspace/
 
 # macOS
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Archives
-*.dmg
-*.zip
-*.tar.gz
-*.aar
-
-# Sparkle private keys (keep in Keychain only!)
-Sparkle/dsa_priv.pem
-dsa_priv.pem
-eddsa_priv.key
-
-# CocoaPods
-Pods/
-
-# Carthage
-Carthage/Build/
-
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
-
