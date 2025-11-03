@@ -11,6 +11,10 @@ import AppKit
 struct AboutView: View {
     @ObservedObject private var licenseManager = LicenseManager.shared
     
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
             // Icon
@@ -30,7 +34,7 @@ struct AboutView: View {
                 .font(.system(size: 28, weight: .bold))
             
             // Version
-            Text("Version 1.0.0")
+            Text("Version \(appVersion)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             
