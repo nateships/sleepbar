@@ -25,6 +25,9 @@ struct ContentView: View {
     @State private var minuteText: String = "00"
     @State private var isPM: Bool = true
     
+    // Force refresh of target times when menu opens
+    @State private var refreshID = UUID()
+    
     enum CustomTimerMode: String, CaseIterable {
         case duration = "Duration"
         case specificTime = "Specific Time"
@@ -56,6 +59,7 @@ struct ContentView: View {
         .padding(8)
         .onAppear {
             selectedSleepMode = timerManager.sleepMode
+            refreshID = UUID() // Refresh target times whenever menu opens
         }
     }
     
@@ -219,6 +223,7 @@ struct ContentView: View {
                 }
             }
             .padding(.horizontal, 16)
+            .id(refreshID) // Force refresh when refreshID changes
             
             // Custom Timer Toggle
             Button(action: {
@@ -423,6 +428,7 @@ struct ContentView: View {
         .background(Color.secondary.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal, 16)
+        .id(refreshID) // Force refresh when refreshID changes
     }
     
     private var durationInputFields: some View {
