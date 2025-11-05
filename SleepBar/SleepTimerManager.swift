@@ -153,20 +153,65 @@ class SleepTimerManager: ObservableObject {
     }
     
     private func putSystemToSleep() {
-        // Put the entire system to sleep using pmset
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-        task.arguments = ["sleepnow"]
+        // Eject external drives before sleeping
+        ejectExternalDrives()
         
-        // Suppress stderr to avoid console warnings
-        task.standardError = Pipe()
-        task.standardOutput = Pipe()
+        // Small delay to ensure drives are ejected
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            // Put the entire system to sleep using pmset
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+            task.arguments = ["sleepnow"]
+            
+            // Suppress stderr to avoid console warnings
+            task.standardError = Pipe()
+            task.standardOutput = Pipe()
+            
+            do {
+                try task.run()
+                task.waitUntilExit()
+            } catch {
+                print("Failed to put system to sleep: \(error)")
+            }
+        }
+    }
+    
+    private func ejectExternalDrives() {
+        let fileManager = FileManager.default
+        let workspace = NSWorkspace.shared
         
-        do {
-            try task.run()
-            task.waitUntilExit()
-        } catch {
-            print("Failed to put system to sleep: \(error)")
+        // Get all mounted volumes
+        guard let volumes = fileManager.mountedVolumeURLs(includingResourceValuesForKeys: [
+            .volumeIsRemovableKey,
+            .volumeIsEjectableKey,
+            .volumeIsInternalKey
+        ], options: [.skipHiddenVolumes]) else {
+            return
+        }
+        
+        for volume in volumes {
+            do {
+                let resourceValues = try volume.resourceValues(forKeys: [
+                    .volumeIsRemovableKey,
+                    .volumeIsEjectableKey,
+                    .volumeIsInternalKey
+                ])
+                
+                // Only eject external, removable, or ejectable volumes
+                let isInternal = resourceValues.volumeIsInternal ?? true
+                let isEjectable = resourceValues.volumeIsEjectable ?? false
+                let isRemovable = resourceValues.volumeIsRemovable ?? false
+                
+                if !isInternal || isEjectable || isRemovable {
+                    // Skip the boot volume
+                    if volume.path != "/" {
+                        workspace.unmountAndEjectDevice(atPath: volume.path)
+                        print("Ejecting volume: \(volume.path)")
+                    }
+                }
+            } catch {
+                print("Error checking volume \(volume.path): \(error)")
+            }
         }
     }
     
