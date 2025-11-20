@@ -25,6 +25,10 @@ struct ContentView: View {
     @State private var minuteText: String = "00"
     @State private var isPM: Bool = true
     
+    // Alert time input
+    @State private var alertMinutesText: String = "1"
+    @State private var alertMinutes: Int = 1
+    
     // Force refresh of target times when menu opens
     @State private var refreshID = UUID()
     
@@ -59,6 +63,8 @@ struct ContentView: View {
         .padding(8)
         .onAppear {
             selectedSleepMode = timerManager.sleepMode
+            alertMinutes = Int(timerManager.warningThreshold / 60)
+            alertMinutesText = String(alertMinutes)
             refreshID = UUID() // Refresh target times whenever menu opens
         }
     }
@@ -272,6 +278,129 @@ struct ContentView: View {
                     timerManager.sleepMode = newValue
                 }
             }
+            
+            Divider()
+                .padding(.horizontal, 16)
+            
+            // Pre-Sleep Alert Settings
+            VStack(spacing: 10) {
+                // Toggle with label
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pre-Sleep Alert")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text("Show warning before sleep")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: Binding(
+                        get: { timerManager.warningEnabled },
+                        set: { timerManager.setWarningEnabled($0) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                }
+                .padding(.horizontal, 16)
+                
+                // Alert time input (only visible when enabled)
+                if timerManager.warningEnabled {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 12) {
+                            Text("Alert")
+                                .font(.caption)
+                                .foregroundStyle(timerManager.isAlertTimeInvalid ? .red : .secondary)
+                            
+                            HStack(spacing: 0) {
+                                // Text field
+                                TextField("1", text: $alertMinutesText)
+                                    .textFieldStyle(.plain)
+                                    .multilineTextAlignment(.center)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .frame(width: 45, height: 26)
+                                    .background(timerManager.isAlertTimeInvalid ? Color.red.opacity(0.1) : Color.blue.opacity(0.1))
+                                    .onChange(of: alertMinutesText) { _, newValue in
+                                        let filtered = filterNumeric(newValue, max: 60)
+                                        alertMinutesText = filtered
+                                        if let minutes = Int(filtered), minutes > 0 {
+                                            alertMinutes = minutes
+                                            timerManager.setWarningThreshold(seconds: TimeInterval(minutes * 60))
+                                            // Clear error when user changes the value
+                                            timerManager.isAlertTimeInvalid = false
+                                        }
+                                    }
+                                
+                                // Stepper buttons
+                                VStack(spacing: 0) {
+                                    Button(action: {
+                                        if alertMinutes < 60 {
+                                            alertMinutes += 1
+                                            alertMinutesText = String(alertMinutes)
+                                            timerManager.setWarningThreshold(seconds: TimeInterval(alertMinutes * 60))
+                                            // Clear error when user changes the value
+                                            timerManager.isAlertTimeInvalid = false
+                                        }
+                                    }) {
+                                        Image(systemName: "chevron.up")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .frame(width: 20, height: 13)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .background(timerManager.isAlertTimeInvalid ? Color.red.opacity(0.15) : Color.blue.opacity(0.15))
+                                    
+                                    Button(action: {
+                                        if alertMinutes > 1 {
+                                            alertMinutes -= 1
+                                            alertMinutesText = String(alertMinutes)
+                                            timerManager.setWarningThreshold(seconds: TimeInterval(alertMinutes * 60))
+                                            // Clear error when user changes the value
+                                            timerManager.isAlertTimeInvalid = false
+                                        }
+                                    }) {
+                                        Image(systemName: "chevron.down")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .frame(width: 20, height: 13)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .background(timerManager.isAlertTimeInvalid ? Color.red.opacity(0.15) : Color.blue.opacity(0.15))
+                                }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(timerManager.isAlertTimeInvalid ? Color.red.opacity(0.4) : Color.blue.opacity(0.2), lineWidth: 1)
+                            )
+                            
+                            Text(alertMinutes == 1 ? "minute before sleeping" : "minutes before sleeping")
+                                .font(.caption)
+                                .foregroundStyle(timerManager.isAlertTimeInvalid ? .red : .secondary)
+                            
+                            Spacer()
+                        }
+                        
+                        // Error message
+                        if timerManager.isAlertTimeInvalid {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                Text("Alert time must be less than timer duration")
+                                    .font(.caption2)
+                                Spacer()
+                            }
+                            .foregroundStyle(.red)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(.vertical, 4)
             
             Divider()
                 .padding(.horizontal, 16)

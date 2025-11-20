@@ -3,12 +3,12 @@
     <channel>
         <title>SleepBar</title>
         <item>
-            <title>1.0.3</title>
-            <pubDate>Wed, 05 Nov 2025 11:19:37 -0500</pubDate>
-            <sparkle:version>3</sparkle:version>
-            <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+            <title>1.0.4</title>
+            <pubDate>Thu, 20 Nov 2025 09:39:52 -0500</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/zcpnate/sleepbar/releases/download/v1.0.3/SleepBar.dmg" length="2516888" type="application/octet-stream" sparkle:edSignature="/bVUbcob1MbgVHzhiJ+hCZcPRUsfbAZi0fqmbJT3IYY5HtfL9QvM8PpFUQBK11+MZbs5M1kZQU0f5X9bCw+oCw=="/>
+            <enclosure url="https://github.com/zcpnate/sleepbar/releasesdownload/v1.0.4/SleepBar.dmg" length="2550713" type="application/octet-stream" sparkle:edSignature="wlKebGydJABq3Pwh+JDyb7rSTS3cUOYpNdW71YvuOVXt+eCMXIA0xycTHnra8dHcI0zE06LVK7AUfpNbfdOtAg=="/>
         </item>
     </channel>
 </rss>

@@ -20,11 +20,28 @@ class SleepTimerManager: ObservableObject {
     @Published var timeRemaining: TimeInterval = 0
     @Published var timeRemainingText = ""
     @Published var sleepMode: SleepMode = .system
+    @Published var warningThreshold: TimeInterval = 60 // 1 minute default
+    @Published var warningEnabled: Bool = true // Alert enabled by default
+    @Published var isAlertTimeInvalid: Bool = false // Tracks if alert time exceeds timer duration
     
     private var timer: Timer?
     private var endDate: Date?
     private var hasShownWarning = false
-    private let warningThreshold: TimeInterval = 60 // 1 minute
+    
+    private let warningThresholdKey = "warningThreshold"
+    private let warningEnabledKey = "warningEnabled"
+    
+    init() {
+        // Load saved warning threshold, default to 60 seconds (1 minute)
+        if UserDefaults.standard.object(forKey: warningThresholdKey) != nil {
+            warningThreshold = UserDefaults.standard.double(forKey: warningThresholdKey)
+        }
+        
+        // Load saved warning enabled state, default to true
+        if UserDefaults.standard.object(forKey: warningEnabledKey) != nil {
+            warningEnabled = UserDefaults.standard.bool(forKey: warningEnabledKey)
+        }
+    }
     
     var targetTimeText: String {
         guard let endDate = endDate else { return "" }
@@ -33,11 +50,30 @@ class SleepTimerManager: ObservableObject {
         return formatter.string(from: endDate)
     }
     
+    func setWarningThreshold(seconds: TimeInterval) {
+        warningThreshold = seconds
+        UserDefaults.standard.set(seconds, forKey: warningThresholdKey)
+    }
+    
+    func setWarningEnabled(_ enabled: Bool) {
+        warningEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: warningEnabledKey)
+    }
+    
     func startTimer(minutes: Int) {
         startTimer(seconds: TimeInterval(minutes * 60))
     }
     
     func startTimer(seconds: TimeInterval) {
+        // Validate that alert time is less than timer duration
+        if warningEnabled && warningThreshold >= seconds {
+            isAlertTimeInvalid = true
+            return
+        }
+        
+        // Clear any previous error state
+        isAlertTimeInvalid = false
+        
         endDate = Date().addingTimeInterval(seconds)
         timeRemaining = seconds
         isActive = true
@@ -55,6 +91,15 @@ class SleepTimerManager: ObservableObject {
     func startTimer(until targetDate: Date) {
         let duration = targetDate.timeIntervalSinceNow
         guard duration > 0 else { return }
+        
+        // Validate that alert time is less than timer duration
+        if warningEnabled && warningThreshold >= duration {
+            isAlertTimeInvalid = true
+            return
+        }
+        
+        // Clear any previous error state
+        isAlertTimeInvalid = false
         
         endDate = targetDate
         timeRemaining = duration
@@ -102,8 +147,8 @@ class SleepTimerManager: ObservableObject {
             timeRemaining = remaining
             timeRemainingText = formatTimeRemaining(remaining)
             
-            // Show warning at 1 minute remaining
-            if !hasShownWarning && remaining <= warningThreshold {
+            // Show warning if enabled and threshold reached
+            if warningEnabled && !hasShownWarning && remaining <= warningThreshold {
                 hasShownWarning = true
                 showWarningWindow()
             }
