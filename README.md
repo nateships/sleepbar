@@ -330,4 +330,3 @@ Never commit to this repository:
 © 2025 Nate O'Farrell. All rights reserved.
 
 This is proprietary software. Source code is private.
-
