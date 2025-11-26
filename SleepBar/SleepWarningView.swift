@@ -11,6 +11,7 @@ struct SleepWarningView: View {
     @EnvironmentObject var timerManager: SleepTimerManager
     let onCancel: () -> Void
     let onSnooze: (Int) -> Void
+    let onSleepNow: () -> Void
     
     var body: some View {
         VStack(spacing: 16) {
@@ -50,51 +51,78 @@ struct SleepWarningView: View {
             .padding(.bottom, 4)
             
             // Action Buttons
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 // Snooze Options
                 HStack(spacing: 8) {
-                    Button("+ 5 min") {
-                        onSnooze(5)
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Button("+ 10 min") {
-                        onSnooze(10)
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Button("+ 30 min") {
-                        onSnooze(30)
-                    }
-                    .buttonStyle(.bordered)
+                    SnoozeButton(title: "+ 5 min") { onSnooze(5) }
+                    SnoozeButton(title: "+ 10 min") { onSnooze(10) }
+                    SnoozeButton(title: "+ 30 min") { onSnooze(30) }
                 }
+                
+                // Sleep Now Button
+                Button(action: onSleepNow) {
+                    Label("Sleep Now", systemImage: "moon.zzz.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .foregroundColor(.white)
+                .background(Color.orange)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 
                 // Cancel Button
                 Button(action: onCancel) {
-                    Text("Cancel Timer")
+                    Label("Cancel Timer", systemImage: "xmark.circle.fill")
+                        .font(.headline)
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .foregroundColor(.white)
+                .background(Color.red)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.bottom, 20)
         }
-        .frame(width: 340, height: 340)
-        .background(.ultraThinMaterial)
+        .frame(width: 340, height: 400)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.regularMaterial)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.5), radius: 30, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.4), radius: 20, x: 0, y: 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// Custom snooze button with blue styling
+struct SnoozeButton: View {
+    let title: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+        }
+        .foregroundColor(.white)
+        .background(Color.blue)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
 #Preview {
     SleepWarningView(
         onCancel: {},
-        onSnooze: { _ in }
+        onSnooze: { _ in },
+        onSleepNow: {}
     )
     .environmentObject(SleepTimerManager())
 }

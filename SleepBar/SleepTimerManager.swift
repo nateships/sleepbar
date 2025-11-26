@@ -30,6 +30,7 @@ class SleepTimerManager: ObservableObject {
     
     private let warningThresholdKey = "warningThreshold"
     private let warningEnabledKey = "warningEnabled"
+    private let sleepModeKey = "sleepMode"
     
     init() {
         // Load saved warning threshold, default to 60 seconds (1 minute)
@@ -41,6 +42,17 @@ class SleepTimerManager: ObservableObject {
         if UserDefaults.standard.object(forKey: warningEnabledKey) != nil {
             warningEnabled = UserDefaults.standard.bool(forKey: warningEnabledKey)
         }
+        
+        // Load saved sleep mode, default to system
+        if let savedModeString = UserDefaults.standard.string(forKey: sleepModeKey),
+           let savedMode = SleepMode(rawValue: savedModeString) {
+            sleepMode = savedMode
+        }
+    }
+    
+    func setSleepMode(_ mode: SleepMode) {
+        sleepMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: sleepModeKey)
     }
     
     var targetTimeText: String {
@@ -168,6 +180,11 @@ class SleepTimerManager: ObservableObject {
                 onSnooze: { [weak self] minutes in
                     self?.snoozeTimer(minutes: minutes)
                     SleepWarningWindow.shared.hide()
+                },
+                onSleepNow: { [weak self] in
+                    self?.cancelTimer()
+                    SleepWarningWindow.shared.hide()
+                    self?.executeSleep()
                 }
             )
         }
@@ -185,7 +202,7 @@ class SleepTimerManager: ObservableObject {
         }
     }
     
-    private func executeSleep() {
+    func executeSleep() {
         // Hide the warning window before sleeping
         SleepWarningWindow.shared.hide()
         

@@ -32,6 +32,15 @@ struct ContentView: View {
     // Force refresh of target times when menu opens
     @State private var refreshID = UUID()
     
+    // UserDefaults keys for remembering last settings
+    private let customModeKey = "lastCustomMode"
+    private let hoursKey = "lastHours"
+    private let minutesKey = "lastMinutes"
+    private let hourKey = "lastHour"
+    private let minuteKey = "lastMinute"
+    private let isPMKey = "lastIsPM"
+    private let showCustomInputKey = "showCustomInput"
+    
     enum CustomTimerMode: String, CaseIterable {
         case duration = "Duration"
         case specificTime = "Specific Time"
@@ -65,6 +74,7 @@ struct ContentView: View {
             selectedSleepMode = timerManager.sleepMode
             alertMinutes = Int(timerManager.warningThreshold / 60)
             alertMinutesText = String(alertMinutes)
+            loadLastUsedSettings()
             refreshID = UUID() // Refresh target times whenever menu opens
         }
     }
@@ -202,6 +212,8 @@ struct ContentView: View {
                 ForEach(quickTimers, id: \.minutes) { option in
                     Button(action: {
                         if licenseManager.isLicensed || licenseManager.isTrialActive {
+                            // Save that quick timer was used (close custom section next time)
+                            UserDefaults.standard.set(false, forKey: showCustomInputKey)
                             timerManager.startTimer(minutes: option.minutes)
                         } else {
                             openWindow(id: "license")
@@ -275,7 +287,7 @@ struct ContentView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
                 .onChange(of: selectedSleepMode) { oldValue, newValue in
-                    timerManager.sleepMode = newValue
+                    timerManager.setSleepMode(newValue)
                 }
             }
             
@@ -673,6 +685,9 @@ struct ContentView: View {
             return
         }
         
+        // Save current settings before starting timer
+        saveLastUsedSettings()
+        
         if customMode == .duration {
             let hours = Int(hoursText) ?? 0
             let minutes = Int(minutesText) ?? 0
@@ -748,6 +763,55 @@ struct ContentView: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: targetDate)
+    }
+    
+    private func loadLastUsedSettings() {
+        // Load whether custom timer section should be open
+        if UserDefaults.standard.object(forKey: showCustomInputKey) != nil {
+            showCustomInput = UserDefaults.standard.bool(forKey: showCustomInputKey)
+        }
+        
+        // Load custom mode
+        if let savedModeString = UserDefaults.standard.string(forKey: customModeKey),
+           let savedMode = CustomTimerMode(rawValue: savedModeString) {
+            customMode = savedMode
+        }
+        
+        // Load duration mode settings
+        if let savedHours = UserDefaults.standard.string(forKey: hoursKey) {
+            hoursText = savedHours
+        }
+        if let savedMinutes = UserDefaults.standard.string(forKey: minutesKey) {
+            minutesText = savedMinutes
+        }
+        
+        // Load specific time mode settings
+        if let savedHour = UserDefaults.standard.string(forKey: hourKey) {
+            hourText = savedHour
+        }
+        if let savedMinute = UserDefaults.standard.string(forKey: minuteKey) {
+            minuteText = savedMinute
+        }
+        if UserDefaults.standard.object(forKey: isPMKey) != nil {
+            isPM = UserDefaults.standard.bool(forKey: isPMKey)
+        }
+    }
+    
+    private func saveLastUsedSettings() {
+        // Save that custom timer was used (so it opens next time)
+        UserDefaults.standard.set(true, forKey: showCustomInputKey)
+        
+        // Save custom mode
+        UserDefaults.standard.set(customMode.rawValue, forKey: customModeKey)
+        
+        // Save duration mode settings
+        UserDefaults.standard.set(hoursText, forKey: hoursKey)
+        UserDefaults.standard.set(minutesText, forKey: minutesKey)
+        
+        // Save specific time mode settings
+        UserDefaults.standard.set(hourText, forKey: hourKey)
+        UserDefaults.standard.set(minuteText, forKey: minuteKey)
+        UserDefaults.standard.set(isPM, forKey: isPMKey)
     }
 }
 
