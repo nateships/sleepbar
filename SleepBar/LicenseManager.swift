@@ -19,6 +19,7 @@ class LicenseManager: ObservableObject {
     @Published var customerEmail: String?
     
     private let trialDays = 7
+    private let validationGraceDays = 7
     private let defaults = UserDefaults.standard
     
     // Lemon Squeezy API
@@ -49,29 +50,23 @@ class LicenseManager: ObservableObject {
     // MARK: - License Status
     
     func checkLicenseStatus() {
-        // Check if already licensed
         if let licenseKey = defaults.string(forKey: Keys.licenseKey),
            let instanceId = defaults.string(forKey: Keys.instanceId) {
-            // Check if we need to revalidate (every 24 hours)
-            let shouldValidate = shouldPerformValidation()
             
-            if shouldValidate {
-                // Validate with Lemon Squeezy API
+            DispatchQueue.main.async {
+                self.isLicensed = true
+                self.customerEmail = self.defaults.string(forKey: Keys.customerEmail)
+                self.customerName = self.defaults.string(forKey: Keys.customerName)
+            }
+            
+            if shouldPerformValidation() {
                 Task {
                     await validateLicenseWithAPI(key: licenseKey, instanceId: instanceId)
-                }
-            } else {
-                // Use cached license status
-                DispatchQueue.main.async {
-                    self.isLicensed = true
-                    self.customerEmail = self.defaults.string(forKey: Keys.customerEmail)
-                    self.customerName = self.defaults.string(forKey: Keys.customerName)
                 }
             }
             return
         }
         
-        // Check trial status
         checkTrialStatus()
     }
     
@@ -229,6 +224,29 @@ class LicenseManager: ObservableObject {
         }
     }
     
+    private func isWithinValidationGracePeriod() -> Bool {
+        guard let lastValidation = defaults.object(forKey: Keys.lastValidationDate) as? Date else {
+            return false
+        }
+        let daysSinceValidation = Calendar.current.dateComponents([.day], from: lastValidation, to: Date()).day ?? Int.max
+        return daysSinceValidation < validationGraceDays
+    }
+    
+    private func applyGracePeriodOrInvalidate() {
+        if isWithinValidationGracePeriod() {
+            DispatchQueue.main.async {
+                self.isLicensed = true
+                self.customerEmail = self.defaults.string(forKey: Keys.customerEmail)
+                self.customerName = self.defaults.string(forKey: Keys.customerName)
+            }
+        } else {
+            DispatchQueue.main.async {
+                self.isLicensed = false
+                self.checkTrialStatus()
+            }
+        }
+    }
+    
     private func validateLicenseWithAPI(key: String, instanceId: String) async {
         guard let url = URL(string: "\(apiEndpoint)/validate") else { return }
         
@@ -245,10 +263,7 @@ class LicenseManager: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
-                DispatchQueue.main.async {
-                    self.isLicensed = false
-                    self.checkTrialStatus()
-                }
+                applyGracePeriodOrInvalidate()
                 return
             }
             
@@ -267,19 +282,19 @@ class LicenseManager: ObservableObject {
             let customerName = meta?["customer_name"] as? String
             let customerEmail = meta?["customer_email"] as? String
             
-            // Record validation timestamp
-            defaults.set(Date(), forKey: Keys.lastValidationDate)
+            let isActive = valid && isValidProduct && status == "active"
+            
+            if isActive {
+                defaults.set(Date(), forKey: Keys.lastValidationDate)
+            }
             
             DispatchQueue.main.async {
-                // Only consider "active" status as licensed (not "inactive")
-                // Other statuses: "expired", "disabled" = not licensed
-                self.isLicensed = valid && isValidProduct && status == "active"
+                self.isLicensed = isActive
                 self.licenseStatus = status
                 self.customerName = customerName
                 self.customerEmail = customerEmail
                 
                 if self.isLicensed {
-                    // Clear trial status when licensed
                     self.isTrialActive = false
                     self.daysRemainingInTrial = 0
                 } else {
@@ -287,7 +302,6 @@ class LicenseManager: ObservableObject {
                 }
             }
             
-            // Save customer info for offline access
             if let customerName = customerName {
                 defaults.set(customerName, forKey: Keys.customerName)
             }
@@ -295,10 +309,7 @@ class LicenseManager: ObservableObject {
                 defaults.set(customerEmail, forKey: Keys.customerEmail)
             }
         } catch {
-            DispatchQueue.main.async {
-                self.isLicensed = false
-                self.checkTrialStatus()
-            }
+            applyGracePeriodOrInvalidate()
         }
     }
     
