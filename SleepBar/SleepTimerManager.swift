@@ -25,26 +25,34 @@ class SleepTimerManager: ObservableObject {
     @Published var isAlertTimeInvalid: Bool = false // Tracks if alert time exceeds timer duration
     
     private var timer: Timer?
-    private var endDate: Date?
+    var endDate: Date?
     private var hasShownWarning = false
     
+    let defaults: UserDefaults
     private let warningThresholdKey = "warningThreshold"
     private let warningEnabledKey = "warningEnabled"
     private let sleepModeKey = "sleepMode"
     
-    init() {
-        // Load saved warning threshold, default to 60 seconds (1 minute)
-        if UserDefaults.standard.object(forKey: warningThresholdKey) != nil {
-            warningThreshold = UserDefaults.standard.double(forKey: warningThresholdKey)
+    convenience init() {
+        self.init(defaults: .standard)
+    }
+    
+    nonisolated deinit {
+        timer?.invalidate()
+    }
+    
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+        
+        if defaults.object(forKey: warningThresholdKey) != nil {
+            warningThreshold = defaults.double(forKey: warningThresholdKey)
         }
         
-        // Load saved warning enabled state, default to true
-        if UserDefaults.standard.object(forKey: warningEnabledKey) != nil {
-            warningEnabled = UserDefaults.standard.bool(forKey: warningEnabledKey)
+        if defaults.object(forKey: warningEnabledKey) != nil {
+            warningEnabled = defaults.bool(forKey: warningEnabledKey)
         }
         
-        // Load saved sleep mode, default to system
-        if let savedModeString = UserDefaults.standard.string(forKey: sleepModeKey),
+        if let savedModeString = defaults.string(forKey: sleepModeKey),
            let savedMode = SleepMode(rawValue: savedModeString) {
             sleepMode = savedMode
         }
@@ -52,24 +60,28 @@ class SleepTimerManager: ObservableObject {
     
     func setSleepMode(_ mode: SleepMode) {
         sleepMode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: sleepModeKey)
+        defaults.set(mode.rawValue, forKey: sleepModeKey)
     }
+    
+    static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
     
     var targetTimeText: String {
         guard let endDate = endDate else { return "" }
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: endDate)
+        return Self.timeFormatter.string(from: endDate)
     }
     
     func setWarningThreshold(seconds: TimeInterval) {
         warningThreshold = seconds
-        UserDefaults.standard.set(seconds, forKey: warningThresholdKey)
+        defaults.set(seconds, forKey: warningThresholdKey)
     }
     
     func setWarningEnabled(_ enabled: Bool) {
         warningEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: warningEnabledKey)
+        defaults.set(enabled, forKey: warningEnabledKey)
     }
     
     func startTimer(minutes: Int) {
@@ -77,54 +89,34 @@ class SleepTimerManager: ObservableObject {
     }
     
     func startTimer(seconds: TimeInterval) {
-        // Validate that alert time is less than timer duration
-        if warningEnabled && warningThreshold >= seconds {
-            isAlertTimeInvalid = true
-            return
-        }
-        
-        // Clear any previous error state
-        isAlertTimeInvalid = false
-        
-        endDate = Date().addingTimeInterval(seconds)
-        timeRemaining = seconds
-        isActive = true
-        hasShownWarning = false
-        
-        // Update immediately
-        updateTimeRemaining()
-        
-        // Create timer that updates every second
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateTimeRemaining()
-        }
+        beginTimer(endDate: Date().addingTimeInterval(seconds), duration: seconds)
     }
     
     func startTimer(until targetDate: Date) {
         let duration = targetDate.timeIntervalSinceNow
         guard duration > 0 else { return }
-        
-        // Validate that alert time is less than timer duration
+        beginTimer(endDate: targetDate, duration: duration)
+    }
+    
+    private func beginTimer(endDate newEndDate: Date, duration: TimeInterval) {
         if warningEnabled && warningThreshold >= duration {
             isAlertTimeInvalid = true
             return
         }
         
-        // Clear any previous error state
         isAlertTimeInvalid = false
-        
-        endDate = targetDate
+        endDate = newEndDate
         timeRemaining = duration
         isActive = true
         hasShownWarning = false
         
-        // Update immediately
         updateTimeRemaining()
         
-        // Create timer that updates every second
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.updateTimeRemaining()
         }
+        timer?.tolerance = 0.1
     }
     
     func cancelTimer() {
@@ -190,7 +182,7 @@ class SleepTimerManager: ObservableObject {
         }
     }
     
-    private func formatTimeRemaining(_ seconds: TimeInterval) -> String {
+    func formatTimeRemaining(_ seconds: TimeInterval) -> String {
         let hours = Int(seconds) / 3600
         let minutes = (Int(seconds) % 3600) / 60
         let secs = Int(seconds) % 60
@@ -215,34 +207,16 @@ class SleepTimerManager: ObservableObject {
     }
     
     private func putSystemToSleep() {
-        // Eject external drives before sleeping
-        ejectExternalDrives()
-        
-        // Small delay to ensure drives are ejected
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            // Put the entire system to sleep using pmset
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-            task.arguments = ["sleepnow"]
-            
-            // Suppress stderr to avoid console warnings
-            task.standardError = Pipe()
-            task.standardOutput = Pipe()
-            
-            do {
-                try task.run()
-                task.waitUntilExit()
-            } catch {
-                print("Failed to put system to sleep: \(error)")
-            }
+        Task {
+            await ejectExternalDrives()
+            runPmset(arguments: ["sleepnow"])
         }
     }
     
-    private func ejectExternalDrives() {
+    private func ejectExternalDrives() async {
         let fileManager = FileManager.default
         let workspace = NSWorkspace.shared
         
-        // Get all mounted volumes
         guard let volumes = fileManager.mountedVolumeURLs(includingResourceValuesForKeys: [
             .volumeIsRemovableKey,
             .volumeIsEjectableKey,
@@ -259,39 +233,38 @@ class SleepTimerManager: ObservableObject {
                     .volumeIsInternalKey
                 ])
                 
-                // Only eject external, removable, or ejectable volumes
                 let isInternal = resourceValues.volumeIsInternal ?? true
                 let isEjectable = resourceValues.volumeIsEjectable ?? false
                 let isRemovable = resourceValues.volumeIsRemovable ?? false
                 
-                if !isInternal || isEjectable || isRemovable {
-                    // Skip the boot volume
-                    if volume.path != "/" {
-                        workspace.unmountAndEjectDevice(atPath: volume.path)
-                        print("Ejecting volume: \(volume.path)")
-                    }
+                if (!isInternal || isEjectable || isRemovable) && volume.path != "/" {
+                    try workspace.unmountAndEjectDevice(at: volume)
+                    print("Ejected volume: \(volume.path)")
                 }
             } catch {
-                print("Error checking volume \(volume.path): \(error)")
+                print("Error ejecting volume \(volume.path): \(error)")
             }
         }
     }
     
     private func putDisplayToSleep() {
-        // Put only the display to sleep using pmset
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-        task.arguments = ["displaysleepnow"]
-        
-        // Suppress stderr to avoid console warnings
-        task.standardError = Pipe()
-        task.standardOutput = Pipe()
-        
-        do {
-            try task.run()
-            task.waitUntilExit()
-        } catch {
-            print("Failed to put display to sleep: \(error)")
+        runPmset(arguments: ["displaysleepnow"])
+    }
+    
+    private func runPmset(arguments: [String]) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+            task.arguments = arguments
+            task.standardError = Pipe()
+            task.standardOutput = Pipe()
+            
+            do {
+                try task.run()
+                task.waitUntilExit()
+            } catch {
+                print("pmset \(arguments.joined(separator: " ")) failed: \(error)")
+            }
         }
     }
 }

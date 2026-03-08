@@ -43,7 +43,7 @@ class SleepWarningWindow: NSWindow {
         self.contentViewController = hostingController
         
         // Force the window to appear on top of everything
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         self.makeKeyAndOrderFront(nil)
         self.orderFrontRegardless()
         

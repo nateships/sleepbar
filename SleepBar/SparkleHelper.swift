@@ -15,8 +15,9 @@ class SparkleHelper: ObservableObject {
     private let updaterController: SPUStandardUpdaterController
     
     private init() {
-        // Initialize Sparkle updater controller
         updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController.updater.automaticallyChecksForUpdates = true
+        updaterController.updater.updateCheckInterval = 10800 // 3 hours
     }
     
     func checkForUpdates() {

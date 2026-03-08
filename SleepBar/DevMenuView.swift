@@ -178,7 +178,7 @@ struct DevMenuView: View {
             if let window = NSApplication.shared.windows.first(where: { $0.title == "Developer Tools" }) {
                 window.level = .floating
                 window.makeKeyAndOrderFront(nil)
-                NSApplication.shared.activate(ignoringOtherApps: true)
+                NSApp.activate()
             }
         }
     }
