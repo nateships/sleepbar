@@ -136,7 +136,7 @@ struct LicenseView: View {
             if let window = NSApplication.shared.windows.first(where: { $0.title == "Activate SleepBar" }) {
                 window.level = .floating
                 window.makeKeyAndOrderFront(nil)
-                NSApplication.shared.activate(ignoringOtherApps: true)
+                NSApp.activate()
             }
         }
     }

@@ -10,7 +10,10 @@ import SwiftUI
 @main
 struct SleepBarApp: App {
     @StateObject private var timerManager = SleepTimerManager()
-    @ObservedObject private var licenseManager = LicenseManager.shared
+    
+    init() {
+        TelemetryManager.shared.track("app_launch")
+    }
     
     var body: some Scene {
         MenuBarExtra {

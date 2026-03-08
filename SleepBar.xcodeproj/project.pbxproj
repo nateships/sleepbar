@@ -10,7 +10,18 @@
 		B9729E052EB528EE00C0F6F1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B9729E042EB528EE00C0F6F1 /* Sparkle */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		AA0000102ECC010800C0F6F1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B9729DB12EB5010800C0F6F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B9729DB82EB5010800C0F6F1;
+			remoteInfo = SleepBar;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		AA00000A2ECC010800C0F6F1 /* SleepBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SleepBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9729DB92EB5010800C0F6F1 /* SleepBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SleepBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -25,6 +36,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		AA00000B2ECC010800C0F6F1 /* SleepBarTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SleepBarTests;
+			sourceTree = "<group>";
+		};
 		B9729DBB2EB5010800C0F6F1 /* SleepBar */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -36,6 +52,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AA00000E2ECC010800C0F6F1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B9729DB62EB5010800C0F6F1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -51,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				B9729DBB2EB5010800C0F6F1 /* SleepBar */,
+				AA00000B2ECC010800C0F6F1 /* SleepBarTests */,
 				B9729DBA2EB5010800C0F6F1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				B9729DB92EB5010800C0F6F1 /* SleepBar.app */,
+				AA00000A2ECC010800C0F6F1 /* SleepBarTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -66,6 +91,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AA00000C2ECC010800C0F6F1 /* SleepBarTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000142ECC010900C0F6F1 /* Build configuration list for PBXNativeTarget "SleepBarTests" */;
+			buildPhases = (
+				AA00000D2ECC010800C0F6F1 /* Sources */,
+				AA00000E2ECC010800C0F6F1 /* Frameworks */,
+				AA00000F2ECC010800C0F6F1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0000112ECC010800C0F6F1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA00000B2ECC010800C0F6F1 /* SleepBarTests */,
+			);
+			name = SleepBarTests;
+			productName = SleepBarTests;
+			productReference = AA00000A2ECC010800C0F6F1 /* SleepBarTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		B9729DB82EB5010800C0F6F1 /* SleepBar */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B9729DC42EB5010900C0F6F1 /* Build configuration list for PBXNativeTarget "SleepBar" */;
@@ -99,6 +145,10 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					AA00000C2ECC010800C0F6F1 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = B9729DB82EB5010800C0F6F1;
+					};
 					B9729DB82EB5010800C0F6F1 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -122,11 +172,19 @@
 			projectRoot = "";
 			targets = (
 				B9729DB82EB5010800C0F6F1 /* SleepBar */,
+				AA00000C2ECC010800C0F6F1 /* SleepBarTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AA00000F2ECC010800C0F6F1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B9729DB72EB5010800C0F6F1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,6 +195,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AA00000D2ECC010800C0F6F1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B9729DB52EB5010800C0F6F1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -146,7 +211,53 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		AA0000112ECC010800C0F6F1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B9729DB82EB5010800C0F6F1 /* SleepBar */;
+			targetProxy = AA0000102ECC010800C0F6F1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		AA0000122ECC010900C0F6F1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = AMR56F4NQB;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.sleepbar.SleepBarTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SleepBar.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SleepBar";
+			};
+			name = Debug;
+		};
+		AA0000132ECC010900C0F6F1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = AMR56F4NQB;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.sleepbar.SleepBarTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SleepBar.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SleepBar";
+			};
+			name = Release;
+		};
 		B9729DC22EB5010900C0F6F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -276,10 +387,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SleepBar/SleepBar.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = AMR56F4NQB;
 				ENABLE_APP_SANDBOX = NO;
@@ -294,7 +406,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.sleepbar.SleepBar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -312,10 +424,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SleepBar/SleepBar.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = AMR56F4NQB;
 				ENABLE_APP_SANDBOX = NO;
@@ -330,7 +443,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.sleepbar.SleepBar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -346,6 +459,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AA0000142ECC010900C0F6F1 /* Build configuration list for PBXNativeTarget "SleepBarTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000122ECC010900C0F6F1 /* Debug */,
+				AA0000132ECC010900C0F6F1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		B9729DB42EB5010800C0F6F1 /* Build configuration list for PBXProject "SleepBar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -8,10 +8,39 @@
 import SwiftUI
 import AppKit
 
+func filterNumeric(_ value: String, max: Int) -> String {
+    let filtered = value.filter { $0.isNumber }
+    if let number = Int(filtered), number > max {
+        return String(max)
+    }
+    return filtered
+}
+
+func filterHour(_ value: String) -> String {
+    let filtered = value.filter { $0.isNumber }
+    guard !filtered.isEmpty else { return "" }
+    if let number = Int(filtered) {
+        if number > 12 { return "12" }
+        else if number == 0 { return "" }
+        return String(number)
+    }
+    return filtered
+}
+
+func filterMinute(_ value: String) -> String {
+    let filtered = value.filter { $0.isNumber }
+    guard !filtered.isEmpty else { return "" }
+    if let number = Int(filtered), number > 59 {
+        return "59"
+    }
+    return filtered
+}
+
 struct ContentView: View {
     @EnvironmentObject var timerManager: SleepTimerManager
     @ObservedObject private var licenseManager = LicenseManager.shared
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedSleepMode: SleepMode = .system
     @State private var showCustomInput = false
     @State private var customMode: CustomTimerMode = .duration
@@ -211,8 +240,7 @@ struct ContentView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 ForEach(quickTimers, id: \.minutes) { option in
                     Button(action: {
-                        if licenseManager.isLicensed || licenseManager.isTrialActive {
-                            // Save that quick timer was used (close custom section next time)
+                        if licenseManager.canUseApp {
                             UserDefaults.standard.set(false, forKey: showCustomInputKey)
                             timerManager.startTimer(minutes: option.minutes)
                         } else {
@@ -220,12 +248,12 @@ struct ContentView: View {
                         }
                     }) {
                         VStack(spacing: 4) {
-                            Image(systemName: licenseManager.isLicensed || licenseManager.isTrialActive ? "clock.fill" : "lock.fill")
+                            Image(systemName: licenseManager.canUseApp ? "clock.fill" : "lock.fill")
                                 .font(.title3)
                             Text(option.label)
                                 .font(.callout)
                                 .fontWeight(.semibold)
-                            if licenseManager.isLicensed || licenseManager.isTrialActive {
+                            if licenseManager.canUseApp {
                                 Text(targetTimeForMinutes(option.minutes))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
@@ -233,8 +261,8 @@ struct ContentView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 70)
-                        .background((licenseManager.isLicensed || licenseManager.isTrialActive) ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15))
-                        .foregroundStyle((licenseManager.isLicensed || licenseManager.isTrialActive) ? .blue : .secondary)
+                        .background(licenseManager.canUseApp ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15))
+                        .foregroundStyle(licenseManager.canUseApp ? .blue : .secondary)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .buttonStyle(.plain)
@@ -469,6 +497,7 @@ struct ContentView: View {
                 
                 if !licenseManager.isLicensed {
                     Button(action: {
+                        dismiss()
                         openWindow(id: "license")
                     }) {
                         HStack {
@@ -484,6 +513,7 @@ struct ContentView: View {
                 }
                 
                 Button(action: {
+                    dismiss()
                     openWindow(id: "about")
                 }) {
                     HStack {
@@ -680,7 +710,7 @@ struct ContentView: View {
     }
     
     private func startCustomTimer() {
-        guard licenseManager.isLicensed || licenseManager.isTrialActive else {
+        guard licenseManager.canUseApp else {
             openWindow(id: "license")
             return
         }
@@ -701,31 +731,15 @@ struct ContentView: View {
     }
     
     private func filterNumeric(_ value: String, max: Int) -> String {
-        let filtered = value.filter { $0.isNumber }
-        if let number = Int(filtered), number > max {
-            return String(max)
-        }
-        return filtered
+        SleepBar.filterNumeric(value, max: max)
     }
     
     private func filterHour(_ value: String) -> String {
-        let filtered = value.filter { $0.isNumber }
-        guard !filtered.isEmpty else { return "" }
-        if let number = Int(filtered) {
-            if number > 12 { return "12" }
-            else if number == 0 { return "" }
-            return String(number)
-        }
-        return filtered
+        SleepBar.filterHour(value)
     }
     
     private func filterMinute(_ value: String) -> String {
-        let filtered = value.filter { $0.isNumber }
-        guard !filtered.isEmpty else { return "" }
-        if let number = Int(filtered), number > 59 {
-            return "59"
-        }
-        return filtered
+        SleepBar.filterMinute(value)
     }
     
     private func startTimeBasedTimer() {
@@ -750,9 +764,7 @@ struct ContentView: View {
     
     private func targetTimeForMinutes(_ minutes: Int) -> String {
         let targetDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: targetDate)
+        return SleepTimerManager.timeFormatter.string(from: targetDate)
     }
     
     private func targetTimeForCustomDuration() -> String {
@@ -760,9 +772,7 @@ struct ContentView: View {
         let minutes = Int(minutesText) ?? 0
         let totalSeconds = TimeInterval(hours * 3600 + minutes * 60)
         let targetDate = Date().addingTimeInterval(totalSeconds)
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: targetDate)
+        return SleepTimerManager.timeFormatter.string(from: targetDate)
     }
     
     private func loadLastUsedSettings() {
