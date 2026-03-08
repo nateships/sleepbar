@@ -188,7 +188,7 @@ class SleepTimerManager: ObservableObject {
                     SleepWarningWindow.shared.hide()
                 },
                 onSleepNow: { [weak self] in
-                    self?.cancelTimer()
+                    self?.cancelTimer(userInitiated: false)
                     SleepWarningWindow.shared.hide()
                     self?.executeSleep()
                 }
