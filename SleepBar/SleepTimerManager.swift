@@ -124,8 +124,8 @@ class SleepTimerManager: ObservableObject {
         timer?.tolerance = 0.1
     }
     
-    func cancelTimer() {
-        if isActive {
+    func cancelTimer(userInitiated: Bool = true) {
+        if userInitiated && isActive {
             TelemetryManager.shared.track("timer_cancel", metadata: [
                 "timeRemaining": timeRemaining
             ])
@@ -149,14 +149,14 @@ class SleepTimerManager: ObservableObject {
     
     private func updateTimeRemaining() {
         guard let endDate = endDate else {
-            cancelTimer()
+            cancelTimer(userInitiated: false)
             return
         }
         
         let remaining = endDate.timeIntervalSinceNow
         
         if remaining <= 0 {
-            cancelTimer()
+            cancelTimer(userInitiated: false)
             executeSleep()
         } else {
             timeRemaining = remaining

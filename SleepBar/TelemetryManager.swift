@@ -45,10 +45,33 @@ final class TelemetryManager {
         return "expired"
     }
 
-    private init() {}
+    private init() {
+        #if DEBUG
+        container.accountStatus { status, error in
+            let statusName: String
+            switch status {
+            case .available: statusName = "available"
+            case .noAccount: statusName = "noAccount"
+            case .restricted: statusName = "restricted"
+            case .couldNotDetermine: statusName = "couldNotDetermine"
+            case .temporarilyUnavailable: statusName = "temporarilyUnavailable"
+            @unknown default: statusName = "unknown(\(status.rawValue))"
+            }
+            print("[Telemetry] iCloud account status: \(statusName)")
+            if let error = error {
+                print("[Telemetry] Account status error: \(error.localizedDescription)")
+            }
+        }
+        #endif
+    }
 
     func track(_ eventType: String, metadata: [String: Any]? = nil) {
-        guard isEnabled else { return }
+        guard isEnabled else {
+            #if DEBUG
+            print("[Telemetry] Skipped \(eventType) — telemetry disabled")
+            #endif
+            return
+        }
 
         let record = CKRecord(recordType: "TelemetryEvent")
         record["eventType"] = eventType as CKRecordValue
@@ -67,7 +90,7 @@ final class TelemetryManager {
         container.publicCloudDatabase.save(record) { _, error in
             #if DEBUG
             if let error = error {
-                print("[Telemetry] Failed to save \(eventType): \(error.localizedDescription)")
+                print("[Telemetry] Failed to save \(eventType): \(error)")
             } else {
                 print("[Telemetry] Saved \(eventType)")
             }

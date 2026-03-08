@@ -40,10 +40,10 @@ struct ContentView: View {
     @EnvironmentObject var timerManager: SleepTimerManager
     @ObservedObject private var licenseManager = LicenseManager.shared
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedSleepMode: SleepMode = .system
     @State private var showCustomInput = false
     @State private var customMode: CustomTimerMode = .duration
-    @State private var telemetryEnabled: Bool = TelemetryManager.shared.isEnabled
     
     // Custom duration inputs
     @State private var hoursText: String = "0"
@@ -442,30 +442,6 @@ struct ContentView: View {
             }
             .padding(.vertical, 4)
             
-            Divider()
-                .padding(.horizontal, 16)
-            
-            // Analytics Toggle
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Share Analytics")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Text("Help improve SleepBar")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-                
-                Toggle("", isOn: $telemetryEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .onChange(of: telemetryEnabled) { _, newValue in
-                        TelemetryManager.shared.isEnabled = newValue
-                    }
-            }
-            .padding(.horizontal, 16)
             .padding(.vertical, 4)
             
             Divider()
@@ -523,6 +499,7 @@ struct ContentView: View {
                 
                 if !licenseManager.isLicensed {
                     Button(action: {
+                        dismiss()
                         openWindow(id: "license")
                     }) {
                         HStack {
@@ -538,6 +515,7 @@ struct ContentView: View {
                 }
                 
                 Button(action: {
+                    dismiss()
                     openWindow(id: "about")
                 }) {
                     HStack {
