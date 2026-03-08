@@ -182,6 +182,8 @@ class LicenseManager: ObservableObject {
                 self.customerEmail = meta["customer_email"] as? String
             }
             
+            TelemetryManager.shared.track("license_activated")
+            
             return (true, nil)
         }
         
@@ -465,6 +467,8 @@ class LicenseManager: ObservableObject {
                 defaults.removeObject(forKey: Keys.customerEmail)
                 defaults.removeObject(forKey: Keys.customerName)
                 defaults.removeObject(forKey: Keys.consecutiveValidationFailures)
+                
+                TelemetryManager.shared.track("license_deactivated")
                 
                 await MainActor.run {
                     self.checkLicenseStatus()

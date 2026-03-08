@@ -11,6 +11,10 @@ import SwiftUI
 struct SleepBarApp: App {
     @StateObject private var timerManager = SleepTimerManager()
     
+    init() {
+        TelemetryManager.shared.track("app_launch")
+    }
+    
     var body: some Scene {
         MenuBarExtra {
             ContentView()

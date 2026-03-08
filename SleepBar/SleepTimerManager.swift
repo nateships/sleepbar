@@ -110,6 +110,11 @@ class SleepTimerManager: ObservableObject {
         isActive = true
         hasShownWarning = false
         
+        TelemetryManager.shared.track("timer_start", metadata: [
+            "duration": duration,
+            "sleepMode": sleepMode.rawValue
+        ])
+        
         updateTimeRemaining()
         
         timer?.invalidate()
@@ -120,6 +125,11 @@ class SleepTimerManager: ObservableObject {
     }
     
     func cancelTimer() {
+        if isActive {
+            TelemetryManager.shared.track("timer_cancel", metadata: [
+                "timeRemaining": timeRemaining
+            ])
+        }
         timer?.invalidate()
         timer = nil
         isActive = false
@@ -134,6 +144,7 @@ class SleepTimerManager: ObservableObject {
         let newEndDate = currentEndDate.addingTimeInterval(TimeInterval(minutes * 60))
         endDate = newEndDate
         hasShownWarning = false
+        TelemetryManager.shared.track("snooze", metadata: ["minutes": minutes])
     }
     
     private func updateTimeRemaining() {
@@ -160,6 +171,9 @@ class SleepTimerManager: ObservableObject {
     }
     
     private func showWarningWindow() {
+        TelemetryManager.shared.track("warning_shown", metadata: [
+            "warningThreshold": warningThreshold
+        ])
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
@@ -195,7 +209,10 @@ class SleepTimerManager: ObservableObject {
     }
     
     func executeSleep() {
-        // Hide the warning window before sleeping
+        TelemetryManager.shared.track("timer_complete", metadata: [
+            "sleepMode": sleepMode.rawValue
+        ])
+        
         SleepWarningWindow.shared.hide()
         
         switch sleepMode {
