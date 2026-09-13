@@ -1,7 +1,6 @@
 [tools]
 gh = "2.100.0"
 xcbeautify = "3.2.1"
-actionlint = "1.7.12"
 
 [env]
 DERIVED_DATA_PATH = "{{config_root}}/build/DerivedData"
@@ -13,6 +12,14 @@ run = "scripts/build.sh"
 [tasks.test]
 description = "Run unit tests (Xcode must be signed in to the team)"
 run = "scripts/test.sh"
+
+[tasks.release]
+description = "Publish a release from main via the workflow in nateships/sleepbar. Usage: mise run release 1.1.1"
+run = 'gh workflow run release.yml -R nateships/sleepbar -f version={{arg(name="version")}} -f source_ref=main -f publish=true'
+
+[tasks.release-dry-run]
+description = "Build, sign, notarize without publishing. Usage: mise run release-dry-run 1.1.1 [ref]"
+run = 'gh workflow run release.yml -R nateships/sleepbar -f version={{arg(name="version")}} -f source_ref={{arg(name="ref", default="main")}} -f publish=false'
 
 [tasks.archive]
 description = "Archive and export a Developer ID signed app. Needs VERSION, PROVISIONING_PROFILE_NAME"
@@ -33,7 +40,3 @@ run = "scripts/appcast.sh"
 [tasks.release-notes]
 description = "Print the CHANGELOG section for VERSION"
 run = "scripts/release-notes.sh"
-
-[tasks.lint]
-description = "Lint GitHub Actions workflows"
-run = "actionlint"

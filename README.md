@@ -2,7 +2,7 @@
 
 A simple and elegant sleep timer for macOS. Set your Mac to sleep after a duration or at a specific time.
 
-**This is the private development repository. The public website, changelog mirror, and release downloads live at [nateships/sleepbar](https://github.com/nateships/sleepbar).**
+**This is the private development repository. The public website, release downloads, appcast, and the release workflow live at [nateships/sleepbar](https://github.com/nateships/sleepbar).**
 
 ---
 
@@ -11,7 +11,7 @@ A simple and elegant sleep timer for macOS. Set your Mac to sleep after a durati
 ### Requirements
 
 - Xcode 26 (macOS 15+)
-- [mise](https://mise.jdx.dev) for the CLI toolchain (`gh`, `xcbeautify`, `actionlint`)
+- [mise](https://mise.jdx.dev) for the CLI toolchain (`gh`, `xcbeautify`)
 - Xcode signed in to team `AMR56F4NQB` for running tests and debug builds with CloudKit entitlements
 
 ### Setup
@@ -28,7 +28,6 @@ open SleepBar.xcodeproj
 ```bash
 mise run build     # Debug build, no code signing
 mise run test      # Unit tests (needs Xcode signed in)
-mise run lint      # Lint GitHub Actions workflows
 mise tasks         # List everything
 ```
 
@@ -46,11 +45,13 @@ Build output goes to `build/` (gitignored).
 
 ## Releasing
 
-Releases are built, signed, notarized, and published by GitHub Actions (`.github/workflows/release.yml`). Nothing is built on a developer machine.
+Releases are built, signed, notarized, and published by GitHub Actions. The workflow file is `.github/workflows/release.yml` in the **public** repo `nateships/sleepbar`, because macOS runners are free there. It checks this repo out with a read-only token. Nothing is built on a developer machine.
+
+Build logs are public. GitHub masks secrets. Source file names appear in the logs.
 
 ### 1. Write the changelog
 
-Add a section to `CHANGELOG.md`. The release fails if the section is missing.
+Add a section to `CHANGELOG.md` here and merge to `main`. The release fails if the section is missing.
 
 ```markdown
 ## [1.1.1] - 09-20-2026
@@ -59,32 +60,39 @@ Add a section to `CHANGELOG.md`. The release fails if the section is missing.
 - Description
 ```
 
-### 2. Tag and push
+### 2. Dry run
 
 ```bash
-git tag v1.1.1
-git push origin main v1.1.1
+mise run release-dry-run 1.1.1          # builds main
+mise run release-dry-run 1.1.1 my-branch
 ```
 
-The tag is the source of truth for the version. CI sets:
+Builds, signs, notarizes, uploads `SleepBar.dmg` as a workflow artifact. Publishes nothing. Download the artifact and test it.
+
+### 3. Release
+
+```bash
+mise run release 1.1.1
+```
+
+Runs the workflow against `main` of this repo with `publish=true`. Equivalent: push tag `v1.1.1` to `nateships/sleepbar`, or run the workflow from the Actions tab there.
+
+The version input is the source of truth. CI sets:
 - `MARKETING_VERSION` = `1.1.1`
 - `CURRENT_PROJECT_VERSION` (Sparkle build number) = `10101` (major×10000 + minor×100 + patch)
 
-The version numbers in the Xcode project are not used for releases.
+The version numbers in the Xcode project are not used for releases. The release notes record which commit of this repo was built.
 
-### 3. What CI does
+### What the workflow does
 
-1. Imports the Developer ID certificate and provisioning profile into a temporary keychain
-2. Archives and exports the app with Developer ID (`scripts/archive.sh`)
-3. Builds and signs the DMG (`scripts/dmg.sh`)
-4. Notarizes and staples (`scripts/notarize.sh`)
-5. Signs the DMG with the Sparkle EdDSA key and updates `appcast.xml` (`scripts/appcast.sh`)
-6. Creates the GitHub release on `nateships/sleepbar` with `SleepBar-1.1.1.dmg` and `SleepBar.dmg`
-7. Commits `appcast.xml` and `CHANGELOG.md` to `nateships/sleepbar` main. Cloudflare Pages deploys the site.
-
-### Dry run
-
-Actions → Release → Run workflow with `publish` unchecked. Builds and notarizes, uploads the DMG as a workflow artifact, publishes nothing.
+1. Checks out `nateships/sleepbar` (site) and this repo (source)
+2. Imports the Developer ID certificate and provisioning profile into a temporary keychain
+3. Archives and exports the app with Developer ID (`scripts/archive.sh`)
+4. Builds and signs the DMG (`scripts/dmg.sh`)
+5. Notarizes and staples (`scripts/notarize.sh`)
+6. Signs the DMG with the Sparkle EdDSA key and updates `appcast.xml` (`scripts/appcast.sh`)
+7. Creates the GitHub release on `nateships/sleepbar` with `SleepBar-1.1.1.dmg` and `SleepBar.dmg`
+8. Commits `appcast.xml` and `CHANGELOG.md` to `nateships/sleepbar` main. Cloudflare Pages deploys the site.
 
 ### 4. Verify
 
@@ -95,19 +103,21 @@ Actions → Release → Run workflow with `publish` unchecked. Builds and notari
 
 ## CI Secrets
 
-Set in this repository under Settings → Secrets and variables → Actions.
+Set on **`nateships/sleepbar`** (the public repo) under Settings → Secrets and variables → Actions. Sources of truth are in the 1Password `sleepbar` and `Private` vaults.
 
-| Secret | Content | How to produce |
+| Secret | Content | Source |
 |---|---|---|
-| `DEVELOPER_ID_P12_BASE64` | Developer ID Application cert + private key | Keychain Access → export identity as `.p12`, then `base64 -i cert.p12 \| pbcopy` |
-| `DEVELOPER_ID_P12_PASSWORD` | Password chosen at export | |
-| `DEVELOPER_ID_PROFILE_BASE64` | Developer ID provisioning profile for `app.sleepbar.SleepBar` | developer.apple.com → Profiles → Distribution → Developer ID → download, then `base64 -i x.provisionprofile \| pbcopy` |
-| `NOTARY_APPLE_ID` | Apple ID email | |
-| `NOTARY_PASSWORD` | App-specific password | appleid.apple.com → Sign-In and Security → App-Specific Passwords |
-| `SPARKLE_PRIVATE_KEY` | Sparkle EdDSA private key (base64 string) | From 1Password. Public key must match `SUPublicEDKey` in `SleepBar/Info.plist` |
-| `SLEEPBAR_SITE_TOKEN` | Fine-grained PAT, repo `nateships/sleepbar`, Contents: read and write | github.com → Settings → Developer settings → Fine-grained tokens |
+| `PRIVATE_REPO_TOKEN` | Fine-grained PAT, repository `sleepbar-private`, Contents: read | github.com → Settings → Developer settings → Fine-grained tokens |
+| `DEVELOPER_ID_P12_BASE64` | Developer ID Application cert + private key, base64 | 1Password "Apple Developer Cert pfx", attached `.p12` |
+| `DEVELOPER_ID_P12_PASSWORD` | Password of that `.p12` | same item |
+| `DEVELOPER_ID_PROFILE_BASE64` | Developer ID provisioning profile for `app.sleepbar.SleepBar`, base64 | 1Password document "SleepBar Developer ID provisioning profile" |
+| `NOTARY_APPLE_ID` | Apple ID email | 1Password "Apple" login |
+| `NOTARY_PASSWORD` | App-specific password | 1Password "notarytool app specific password" |
+| `SPARKLE_PRIVATE_KEY` | Sparkle EdDSA private key, base64 string | 1Password "SleepBar Sparkle Keys". Public key must match `SUPublicEDKey` in `SleepBar/Info.plist` |
 
-The Sparkle private key is the only thing that cannot be re-issued. If it is lost, installed apps reject every future update. Keep the 1Password copy.
+The Sparkle private key is the only thing that cannot be re-issued. If it is lost, installed apps reject every future update.
+
+The Developer ID certificate expires 2027-02-01. When renewed: export the new `.p12`, regenerate the provisioning profile with the new cert, update both secrets and 1Password.
 
 ---
 
@@ -130,11 +140,8 @@ sleepbar-private/
 │   ├── SparkleHelper.swift        # Sparkle auto-update wrapper
 │   └── Info.plist                 # Sparkle feed URL and public key
 ├── SleepBarTests/                 # Unit tests
-├── scripts/                       # Build, sign, notarize, appcast (used by mise tasks and CI)
-├── .github/workflows/
-│   ├── ci.yml                     # Build on PRs and main
-│   └── release.yml                # Tag-driven release
-├── CHANGELOG.md                   # Source of truth; CI copies it to the website
+├── scripts/                       # Build, sign, notarize, appcast (used by mise tasks and the release workflow)
+├── CHANGELOG.md                   # Source of truth; the release workflow copies it to the website
 └── mise.toml                      # Toolchain pins and tasks
 ```
 
