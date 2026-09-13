@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 09-13-2026
+
+#### Added
+- **Open at Login**: New toggle in the menu to start SleepBar automatically when you log in
+
+#### Bug Fixes
+- Custom timer values are remembered as you type them
+
+#### Updated
+- Updated Sparkle auto-update framework to 2.9.6
+
+#### Under the Hood
+- The app is notarized and stapled on its own, so first launch and Sparkle updates verify offline
+
 ## [1.1.0] - 03-08-2026
 
 #### Added
