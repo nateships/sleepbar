@@ -28,3 +28,7 @@ releases/build/
 
 # macOS
 .DS_Store
+
+# Signing material, never commit
+*.p12
+*.provisionprofile

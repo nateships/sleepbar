@@ -1,0 +1,28 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:best-practices"],
+  labels: ["dependencies"],
+  minimumReleaseAge: "3 days",
+  // No CI runs on pull requests here (macOS minutes would bill), so there
+  // are no checks to wait for.
+  ignoreTests: true,
+  packageRules: [
+    {
+      // Tool pins in mise.toml (gh, xcbeautify). Patch and minor bumps go
+      // straight to main. Majors open a PR.
+      matchManagers: ["mise"],
+      groupName: "mise tools",
+      matchUpdateTypes: ["minor", "patch"],
+      automerge: true,
+      automergeType: "branch",
+    },
+    {
+      matchManagers: ["mise"],
+      matchUpdateTypes: ["major"],
+      groupName: "mise tools (major)",
+    },
+  ],
+  // Sparkle is resolved by Xcode's Swift Package Manager inside the
+  // xcodeproj. Renovate has no manager for that. Update it in Xcode:
+  // File -> Packages -> Update to Latest Package Versions.
+}
