@@ -83,9 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Future Releases
 
-Have a feature request? [Open an issue](https://github.com/zcpnate/sleepbar/issues) or email [hi@sleepbar.app](mailto:hi@sleepbar.app)!
+Have a feature request? [Open an issue](https://github.com/nateships/sleepbar/issues) or email [hi@sleepbar.app](mailto:hi@sleepbar.app)!
 
 ---
 
-[1.0.0]: https://github.com/zcpnate/sleepbar/releases/tag/v1.0.0
+[1.0.0]: https://github.com/nateships/sleepbar/releases/tag/v1.0.0
 

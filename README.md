@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zcpnate/sleepbar/releases/latest">
-    <img src="https://img.shields.io/github/v/release/zcpnate/sleepbar?label=version" alt="Latest Release">
+  <a href="https://github.com/nateships/sleepbar/releases/latest">
+    <img src="https://img.shields.io/github/v/release/nateships/sleepbar?label=version" alt="Latest Release">
   </a>
-  <a href="https://github.com/zcpnate/sleepbar/releases">
-    <img src="https://img.shields.io/github/downloads/zcpnate/sleepbar/total" alt="Downloads">
+  <a href="https://github.com/nateships/sleepbar/releases">
+    <img src="https://img.shields.io/github/downloads/nateships/sleepbar/total" alt="Downloads">
   </a>
   <img src="https://img.shields.io/badge/macOS-14.0+-blue" alt="macOS 14.0+">
   <img src="https://img.shields.io/badge/price-$4.20-green" alt="Price">
@@ -45,7 +45,7 @@ SleepBar is a beautiful menu bar app that lets you set your Mac to sleep after a
 
 ## 📥 Download
 
-**Latest Version**: [Download SleepBar](https://github.com/zcpnate/sleepbar/releases/latest/download/SleepBar.dmg)
+**Latest Version**: [Download SleepBar](https://github.com/nateships/sleepbar/releases/latest/download/SleepBar.dmg)
 
 **Requirements**: macOS 14.0 (Sonoma) or later
 
@@ -77,7 +77,7 @@ Visit [sleepbar.app](https://sleepbar.app) for more information.
 ## 📧 Support
 
 - **Email**: [hi@sleepbar.app](mailto:hi@sleepbar.app)
-- **Issues**: [Report a bug](https://github.com/zcpnate/sleepbar/issues)
+- **Issues**: [Report a bug](https://github.com/nateships/sleepbar/issues)
 
 ---
 
