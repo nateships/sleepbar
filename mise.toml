@@ -30,8 +30,8 @@ description = "Build and sign build/SleepBar.dmg from the exported app"
 run = "scripts/dmg.sh"
 
 [tasks.notarize]
-description = "Notarize and staple build/SleepBar.dmg"
-run = "scripts/notarize.sh"
+description = "Notarize and staple the exported app or the DMG. Usage: mise run notarize app|dmg"
+run = 'scripts/notarize.sh {{arg(name="target")}}'
 
 [tasks.appcast]
 description = "Update the Sparkle appcast. Usage: mise run appcast <site-dir>. Needs VERSION"
