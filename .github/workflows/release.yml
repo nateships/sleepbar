@@ -80,7 +80,7 @@ jobs:
             echo "SOURCE_SHA=$(git rev-parse HEAD)"
           } >> "$GITHUB_ENV"
           echo "Building $VERSION from sleepbar-private@$(git rev-parse --short HEAD) (publish=$PUBLISH)"
-          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if [ "$PUBLISH" = "true" ] && gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release v$VERSION already exists" >&2
             exit 1
           fi
