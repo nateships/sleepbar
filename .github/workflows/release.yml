@@ -136,14 +136,20 @@ jobs:
       - name: Archive and export
         run: mise run archive
 
-      - name: Build DMG
-        run: mise run dmg
-
-      - name: Notarize
+      - name: Notarize and staple app
         env:
           NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
-        run: mise run notarize
+        run: mise run notarize app
+
+      - name: Build DMG
+        run: mise run dmg
+
+      - name: Notarize and staple DMG
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: mise run notarize dmg
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
