@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.0] - Unreleased
+## [1.2.0] - 09-13-2026
 
 #### Added
 - **Open at Login**: New toggle in the menu to start SleepBar automatically when you log in
