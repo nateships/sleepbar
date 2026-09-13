@@ -27,6 +27,9 @@ class SleepTimerManager: ObservableObject {
     private var timer: Timer?
     var endDate: Date?
     private var hasShownWarning = false
+
+    /// Tests set this to observe timer expiry without putting the Mac to sleep.
+    var sleepAction: ((SleepMode) -> Void)?
     
     let defaults: UserDefaults
     private let warningThresholdKey = "warningThreshold"
@@ -214,7 +217,12 @@ class SleepTimerManager: ObservableObject {
         ])
         
         SleepWarningWindow.shared.hide()
-        
+
+        if let sleepAction {
+            sleepAction(sleepMode)
+            return
+        }
+
         switch sleepMode {
         case .system:
             putSystemToSleep()

@@ -88,11 +88,12 @@ The version numbers in the Xcode project are not used for releases. The release 
 1. Checks out `nateships/sleepbar` (site) and this repo (source)
 2. Imports the Developer ID certificate and provisioning profile into a temporary keychain
 3. Archives and exports the app with Developer ID (`scripts/archive.sh`)
-4. Builds and signs the DMG (`scripts/dmg.sh`)
-5. Notarizes and staples (`scripts/notarize.sh`)
-6. Signs the DMG with the Sparkle EdDSA key and updates `appcast.xml` (`scripts/appcast.sh`)
-7. Creates the GitHub release on `nateships/sleepbar` with `SleepBar-1.1.1.dmg` and `SleepBar.dmg`
-8. Commits `appcast.xml` and `CHANGELOG.md` to `nateships/sleepbar` main. Cloudflare Pages deploys the site.
+4. Notarizes and staples the app (`scripts/notarize.sh app`), so it verifies offline and Sparkle installs it without a round trip to Apple
+5. Builds and signs the DMG from the stapled app (`scripts/dmg.sh`)
+6. Notarizes and staples the DMG (`scripts/notarize.sh dmg`)
+7. Signs the DMG with the Sparkle EdDSA key and updates `appcast.xml` (`scripts/appcast.sh`)
+8. Creates the GitHub release on `nateships/sleepbar` with `SleepBar-1.1.1.dmg` and `SleepBar.dmg`
+9. Commits `appcast.xml` and `CHANGELOG.md` to `nateships/sleepbar` main. Cloudflare Pages deploys the site.
 
 ### 4. Verify
 
@@ -138,6 +139,7 @@ sleepbar-private/
 │   ├── TelemetryManager.swift     # Opt-out CloudKit analytics
 │   ├── DevMenuView.swift          # Developer tools (debug only)
 │   ├── SparkleHelper.swift        # Sparkle auto-update wrapper
+│   ├── LaunchAtLogin.swift        # Login item (SMAppService) wrapper
 │   └── Info.plist                 # Sparkle feed URL and public key
 ├── SleepBarTests/                 # Unit tests
 ├── scripts/                       # Build, sign, notarize, appcast (used by mise tasks and the release workflow)

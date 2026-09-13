@@ -42,33 +42,33 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @State private var selectedSleepMode: SleepMode = .system
+    // Custom timer inputs. AppStorage keeps edits when the menu closes
+    // or the app relaunches, not only when a timer starts.
+    // The section opens on appear when a custom timer was the last timer started.
+    @AppStorage("showCustomInput") private var customTimerWasLastUsed = false
     @State private var showCustomInput = false
-    @State private var customMode: CustomTimerMode = .duration
-    
+    @AppStorage("lastCustomMode") private var customMode: CustomTimerMode = .duration
+
     // Custom duration inputs
-    @State private var hoursText: String = "0"
-    @State private var minutesText: String = "15"
-    
+    @AppStorage("lastHours") private var hoursText: String = "0"
+    @AppStorage("lastMinutes") private var minutesText: String = "15"
+
     // Specific time inputs
-    @State private var hourText: String = "10"
-    @State private var minuteText: String = "00"
-    @State private var isPM: Bool = true
+    @AppStorage("lastHour") private var hourText: String = "10"
+    @AppStorage("lastMinute") private var minuteText: String = "00"
+    @AppStorage("lastIsPM") private var isPM: Bool = true
     
     // Alert time input
     @State private var alertMinutesText: String = "1"
     @State private var alertMinutes: Int = 1
+
+    // Mirrors SMAppService status. onAppear reads it because the user can
+    // change it in System Settings. The read is an XPC call, so it is not
+    // in the initializer, which runs on every view update.
+    @State private var launchAtLogin = false
     
     // Force refresh of target times when menu opens
     @State private var refreshID = UUID()
-    
-    // UserDefaults keys for remembering last settings
-    private let customModeKey = "lastCustomMode"
-    private let hoursKey = "lastHours"
-    private let minutesKey = "lastMinutes"
-    private let hourKey = "lastHour"
-    private let minuteKey = "lastMinute"
-    private let isPMKey = "lastIsPM"
-    private let showCustomInputKey = "showCustomInput"
     
     enum CustomTimerMode: String, CaseIterable {
         case duration = "Duration"
@@ -103,7 +103,9 @@ struct ContentView: View {
             selectedSleepMode = timerManager.sleepMode
             alertMinutes = Int(timerManager.warningThreshold / 60)
             alertMinutesText = String(alertMinutes)
-            loadLastUsedSettings()
+            launchAtLogin = LaunchAtLogin.isEnabled
+            showCustomInput = customTimerWasLastUsed
+            restoreEmptyCustomInputs()
             refreshID = UUID() // Refresh target times whenever menu opens
         }
     }
@@ -241,7 +243,7 @@ struct ContentView: View {
                 ForEach(quickTimers, id: \.minutes) { option in
                     Button(action: {
                         if licenseManager.canUseApp {
-                            UserDefaults.standard.set(false, forKey: showCustomInputKey)
+                            customTimerWasLastUsed = false
                             timerManager.startTimer(minutes: option.minutes)
                         } else {
                             openWindow(id: "license")
@@ -325,26 +327,14 @@ struct ContentView: View {
             // Pre-Sleep Alert Settings
             VStack(spacing: 10) {
                 // Toggle with label
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Pre-Sleep Alert")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("Show warning before sleep")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: Binding(
+                SettingsToggleRow(
+                    title: "Pre-Sleep Alert",
+                    caption: "Show warning before sleep",
+                    isOn: Binding(
                         get: { timerManager.warningEnabled },
                         set: { timerManager.setWarningEnabled($0) }
-                    ))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                }
-                .padding(.horizontal, 16)
+                    )
+                )
                 
                 // Alert time input (only visible when enabled)
                 if timerManager.warningEnabled {
@@ -445,6 +435,27 @@ struct ContentView: View {
             Divider()
                 .padding(.horizontal, 16)
             
+            // Open at Login
+            SettingsToggleRow(
+                title: "Open at Login",
+                caption: "Start SleepBar when you log in",
+                isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { enabled in
+                        do {
+                            try LaunchAtLogin.setEnabled(enabled)
+                        } catch {
+                            NSLog("Launch at login change failed: \(error.localizedDescription)")
+                        }
+                        launchAtLogin = LaunchAtLogin.isEnabled
+                    }
+                )
+            )
+            .padding(.vertical, 4)
+
+            Divider()
+                .padding(.horizontal, 16)
+
             // License Status Banner
             if licenseManager.isTrialActive {
                 HStack {
@@ -714,10 +725,9 @@ struct ContentView: View {
             openWindow(id: "license")
             return
         }
-        
-        // Save current settings before starting timer
-        saveLastUsedSettings()
-        
+
+        customTimerWasLastUsed = true
+
         if customMode == .duration {
             let hours = Int(hoursText) ?? 0
             let minutes = Int(minutesText) ?? 0
@@ -743,23 +753,9 @@ struct ContentView: View {
     }
     
     private func startTimeBasedTimer() {
-        guard let hour = Int(hourText), let minute = Int(minuteText) else { return }
-        
-        var hour24 = hour
-        if isPM && hour != 12 {
-            hour24 = hour + 12
-        } else if !isPM && hour == 12 {
-            hour24 = 0
-        }
-        
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        components.hour = hour24
-        components.minute = minute
-        
-        if let targetDate = Calendar.current.date(from: components) {
-            let finalDate = targetDate <= Date() ? Calendar.current.date(byAdding: .day, value: 1, to: targetDate) ?? targetDate : targetDate
-            timerManager.startTimer(until: finalDate)
-        }
+        guard let hour = Int(hourText), let minute = Int(minuteText),
+              let targetDate = sleepTargetDate(hour12: hour, minute: minute, isPM: isPM) else { return }
+        timerManager.startTimer(until: targetDate)
     }
     
     private func targetTimeForMinutes(_ minutes: Int) -> String {
@@ -775,53 +771,42 @@ struct ContentView: View {
         return SleepTimerManager.timeFormatter.string(from: targetDate)
     }
     
-    private func loadLastUsedSettings() {
-        // Load whether custom timer section should be open
-        if UserDefaults.standard.object(forKey: showCustomInputKey) != nil {
-            showCustomInput = UserDefaults.standard.bool(forKey: showCustomInputKey)
+    // An empty field shows only its placeholder, but the Start button
+    // stays disabled. Restore the defaults so the two do not disagree.
+    private func restoreEmptyCustomInputs() {
+        if hoursText.isEmpty && minutesText.isEmpty {
+            hoursText = "0"
+            minutesText = "15"
         }
-        
-        // Load custom mode
-        if let savedModeString = UserDefaults.standard.string(forKey: customModeKey),
-           let savedMode = CustomTimerMode(rawValue: savedModeString) {
-            customMode = savedMode
-        }
-        
-        // Load duration mode settings
-        if let savedHours = UserDefaults.standard.string(forKey: hoursKey) {
-            hoursText = savedHours
-        }
-        if let savedMinutes = UserDefaults.standard.string(forKey: minutesKey) {
-            minutesText = savedMinutes
-        }
-        
-        // Load specific time mode settings
-        if let savedHour = UserDefaults.standard.string(forKey: hourKey) {
-            hourText = savedHour
-        }
-        if let savedMinute = UserDefaults.standard.string(forKey: minuteKey) {
-            minuteText = savedMinute
-        }
-        if UserDefaults.standard.object(forKey: isPMKey) != nil {
-            isPM = UserDefaults.standard.bool(forKey: isPMKey)
-        }
+        if hourText.isEmpty { hourText = "10" }
+        if minuteText.isEmpty { minuteText = "00" }
     }
+}
+
+// A label with a caption on the left and a switch on the right.
+private struct SettingsToggleRow: View {
+    let title: String
+    let caption: String
+    let isOn: Binding<Bool>
     
-    private func saveLastUsedSettings() {
-        // Save that custom timer was used (so it opens next time)
-        UserDefaults.standard.set(true, forKey: showCustomInputKey)
-        
-        // Save custom mode
-        UserDefaults.standard.set(customMode.rawValue, forKey: customModeKey)
-        
-        // Save duration mode settings
-        UserDefaults.standard.set(hoursText, forKey: hoursKey)
-        UserDefaults.standard.set(minutesText, forKey: minutesKey)
-        
-        // Save specific time mode settings
-        UserDefaults.standard.set(hourText, forKey: hourKey)
-        UserDefaults.standard.set(minuteText, forKey: minuteKey)
-        UserDefaults.standard.set(isPM, forKey: isPMKey)
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
+        .padding(.horizontal, 16)
     }
 }
 
