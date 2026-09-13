@@ -1,0 +1,28 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  // best-practices: config migration, pin GitHub Actions to SHA digests,
+  // dependency dashboard issue.
+  extends: ["config:best-practices"],
+  labels: ["dependencies"],
+  // Wait for a release to age before proposing it. Limits exposure to a
+  // compromised tag that gets pulled quickly.
+  minimumReleaseAge: "3 days",
+  // Nothing runs on pull requests in this repo, so there are no checks to wait for.
+  ignoreTests: true,
+  packageRules: [
+    {
+      // GitHub Actions: patch, minor, and digest bumps go straight to main.
+      // Majors open a PR for review.
+      matchManagers: ["github-actions"],
+      groupName: "GitHub Actions",
+      matchUpdateTypes: ["minor", "patch", "digest", "pin", "pinDigest"],
+      automerge: true,
+      automergeType: "branch",
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["major"],
+      groupName: "GitHub Actions (major)",
+    },
+  ],
+}
