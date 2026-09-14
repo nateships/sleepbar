@@ -19,7 +19,11 @@ run = 'gh workflow run release.yml -R nateships/sleepbar -f version={{arg(name="
 
 [tasks.release-dry-run]
 description = "Build, sign, notarize without publishing. Usage: mise run release-dry-run 1.1.1 [ref]"
-run = 'gh workflow run release.yml -R nateships/sleepbar -f version={{arg(name="version")}} -f source_ref={{arg(name="ref", default="main")}} -f publish=false'
+usage = '''
+arg "<version>" help="Version to build, for example 1.1.1"
+arg "[ref]" help="Git ref to build" default="main"
+'''
+run = 'gh workflow run release.yml -R nateships/sleepbar -f version="$usage_version" -f source_ref="$usage_ref" -f publish=false'
 
 [tasks.archive]
 description = "Archive and export a Developer ID signed app. Needs VERSION, PROVISIONING_PROFILE_NAME"
@@ -31,7 +35,12 @@ run = "scripts/dmg.sh"
 
 [tasks.notarize]
 description = "Notarize and staple the exported app or the DMG. Usage: mise run notarize app|dmg"
-run = 'scripts/notarize.sh {{arg(name="target")}}'
+usage = '''
+arg "<target>" help="What to notarize" {
+  choices "app" "dmg"
+}
+'''
+run = 'scripts/notarize.sh "$usage_target"'
 
 [tasks.appcast]
 description = "Update the Sparkle appcast. Usage: mise run appcast <site-dir>. Needs VERSION"

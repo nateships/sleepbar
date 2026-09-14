@@ -94,6 +94,7 @@ The version numbers in the Xcode project are not used for releases. The release 
 7. Signs the DMG with the Sparkle EdDSA key and updates `appcast.xml` (`scripts/appcast.sh`)
 8. Creates the GitHub release on `nateships/sleepbar` with `SleepBar-1.1.1.dmg` and `SleepBar.dmg`
 9. Commits `appcast.xml` and `CHANGELOG.md` to `nateships/sleepbar` main. Cloudflare Pages deploys the site.
+10. Bumps `Casks/sleepbar.rb` in `nateships/homebrew-tap` to the new version and checksum (`brew install --cask nateships/tap/sleepbar`). If only this step fails, rerun the workflow with `tap_only` checked and the version.
 
 ### 4. Verify
 
@@ -115,6 +116,7 @@ Set on **`nateships/sleepbar`** (the public repo) under Settings → Secrets and
 | `NOTARY_APPLE_ID` | Apple ID email | 1Password "Apple" login |
 | `NOTARY_PASSWORD` | App-specific password | 1Password "notarytool app specific password" |
 | `SPARKLE_PRIVATE_KEY` | Sparkle EdDSA private key, base64 string | 1Password "SleepBar Sparkle Keys". Public key must match `SUPublicEDKey` in `SleepBar/Info.plist` |
+| `HOMEBREW_TAP_TOKEN` | Fine-grained PAT, repository `homebrew-tap`, Contents: read and write | Same token the rolle release workflow uses. 1Password `rolle` vault, "rolle-homebrew-tap" |
 
 The Sparkle private key is the only thing that cannot be re-issued. If it is lost, installed apps reject every future update.
 
