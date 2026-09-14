@@ -47,6 +47,8 @@ SleepBar is a beautiful menu bar app that lets you set your Mac to sleep after a
 
 **Latest Version**: [Download SleepBar](https://github.com/nateships/sleepbar/releases/latest/download/SleepBar.dmg)
 
+**Homebrew**: `brew install --cask nateships/tap/sleepbar`
+
 **Requirements**: macOS 14.0 (Sonoma) or later
 
 ---

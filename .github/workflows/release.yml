@@ -27,6 +27,10 @@ on:
         description: "Publish the GitHub release and update the website"
         type: boolean
         default: false
+      tap_only:
+        description: "Skip the build. Only bump the Homebrew cask to an already published version."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -35,14 +39,17 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-defaults:
-  run:
-    working-directory: src
-
 jobs:
   release:
+    if: ${{ !inputs.tap_only }}
     runs-on: macos-26
     timeout-minutes: 60
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+    defaults:
+      run:
+        working-directory: src
     steps:
       - name: Check out website repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -64,6 +71,7 @@ jobs:
           cache: true
 
       - name: Resolve version
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -79,6 +87,10 @@ jobs:
             echo "PUBLISH=$PUBLISH"
             echo "SOURCE_SHA=$(git rev-parse HEAD)"
           } >> "$GITHUB_ENV"
+          {
+            echo "version=$VERSION"
+            echo "publish=$PUBLISH"
+          } >> "$GITHUB_OUTPUT"
           echo "Building $VERSION from sleepbar-private@$(git rev-parse --short HEAD) (publish=$PUBLISH)"
           if [ "$PUBLISH" = "true" ] && gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release v$VERSION already exists" >&2
@@ -194,3 +206,44 @@ jobs:
           [ -n "${KEYCHAIN:-}" ] && security delete-keychain "$KEYCHAIN" || true
           rm -rf "$HOME/Library/MobileDevice/Provisioning Profiles" \
                  "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+
+  # Runs after the release is public, so the cask URL resolves when the tap
+  # updates. brew bump-cask-pr downloads the new DMG and rewrites version and
+  # sha256 in Casks/sleepbar.rb in nateships/homebrew-tap.
+  tap:
+    needs: release
+    if: ${{ !cancelled() && (inputs.tap_only || needs.release.outputs.publish == 'true') }}
+    runs-on: macos-latest
+    timeout-minutes: 15
+    permissions: {}
+    steps:
+      - name: Pick the version from the release job or the input
+        env:
+          RELEASED_VERSION: ${{ needs.release.outputs.version }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="${RELEASED_VERSION:-$INPUT_VERSION}"
+          [ -n "$VERSION" ] || { echo "No version" >&2; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - uses: Homebrew/actions/setup-homebrew@082c94ee19e776205cfa8e43802917d1425e2fe7 # main
+
+      - name: Bump the cask in the tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_NO_INSTALL_FROM_API: "1"
+        run: |
+          set -euo pipefail
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN is not set; the cask is not updated." >&2
+            exit 1
+          fi
+          # Homebrew loads casks only from taps the user trusts.
+          brew trust --tap nateships/tap
+          brew tap nateships/tap
+          tap="$(brew --repository nateships/tap)"
+          git -C "$tap" config user.name "github-actions[bot]"
+          git -C "$tap" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          brew bump-cask-pr nateships/tap/sleepbar --version "$VERSION" --write-only --commit --no-audit --no-browse
+          git -C "$tap" push "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/nateships/homebrew-tap.git" HEAD:main
