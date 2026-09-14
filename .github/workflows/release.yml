@@ -245,5 +245,12 @@ jobs:
           tap="$(brew --repository nateships/tap)"
           git -C "$tap" config user.name "github-actions[bot]"
           git -C "$tap" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # bump-cask-pr fails when the cask already has this version. A rerun
+          # after a successful bump must be a no-op.
+          current="$(brew info --cask --json=v2 nateships/tap/sleepbar | jq -r '.casks[0].version')"
+          if [ "$current" = "$VERSION" ]; then
+            echo "Cask already at $VERSION; nothing to do."
+            exit 0
+          fi
           brew bump-cask-pr nateships/tap/sleepbar --version "$VERSION" --write-only --commit --no-audit --no-browse
           git -C "$tap" push "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/nateships/homebrew-tap.git" HEAD:main
