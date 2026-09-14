@@ -430,6 +430,46 @@
             color: var(--text-secondary);
         }
 
+        .brew-install {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            max-width: 100%;
+            margin-bottom: 1rem;
+            padding: 0.6rem 0.6rem 0.6rem 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .brew-install code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+
+        .brew-install button {
+            flex-shrink: 0;
+            padding: 0.4rem 0.8rem;
+            background: var(--background-elevated);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .brew-install button:hover {
+            border-color: var(--primary-color);
+        }
+
+        .download .brew-install {
+            margin-top: 1.5rem;
+        }
+
         /* Pricing Section */
         .pricing {
             background: var(--background);
@@ -660,6 +700,10 @@
             .faq h2 {
                 font-size: 2rem;
             }
+
+            .brew-install {
+                font-size: 0.85rem;
+            }
             
             .faq-item summary {
                 font-size: 1rem;
@@ -837,6 +881,11 @@
                         Buy Now - $4.20
                     </a>
                 </div>
+                <div class="brew-install">
+                    <code>brew install --cask nateships/tap/sleepbar</code>
+                    <button type="button" aria-label="Copy Homebrew command"
+                        onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent).then(() => { this.textContent = 'Copied'; setTimeout(() => { this.textContent = 'Copy'; }, 1500); })">Copy</button>
+                </div>
                 <p class="trial-info">7-day free trial • macOS 14.0+</p>
             </div>
             <div class="hero-image">
@@ -908,6 +957,11 @@
                 <a href="https://github.com/nateships/sleepbar/releases/latest/download/SleepBar.dmg" class="primary-button large">
                     Download for macOS
                 </a>
+            </div>
+            <div class="brew-install">
+                <code>brew install --cask nateships/tap/sleepbar</code>
+                <button type="button" aria-label="Copy Homebrew command"
+                    onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent).then(() => { this.textContent = 'Copied'; setTimeout(() => { this.textContent = 'Copy'; }, 1500); })">Copy</button>
             </div>
             <p class="system-requirements">Requires macOS 14.0 (Sonoma) or later</p>
         </section>
