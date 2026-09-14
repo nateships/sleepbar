@@ -466,6 +466,10 @@
             border-color: var(--primary-color);
         }
 
+        .download .brew-install {
+            margin-top: 1.5rem;
+        }
+
         /* Pricing Section */
         .pricing {
             background: var(--background);
@@ -953,6 +957,11 @@
                 <a href="https://github.com/nateships/sleepbar/releases/latest/download/SleepBar.dmg" class="primary-button large">
                     Download for macOS
                 </a>
+            </div>
+            <div class="brew-install">
+                <code>brew install --cask nateships/tap/sleepbar</code>
+                <button type="button" aria-label="Copy Homebrew command"
+                    onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent).then(() => { this.textContent = 'Copied'; setTimeout(() => { this.textContent = 'Copy'; }, 1500); })">Copy</button>
             </div>
             <p class="system-requirements">Requires macOS 14.0 (Sonoma) or later</p>
         </section>
