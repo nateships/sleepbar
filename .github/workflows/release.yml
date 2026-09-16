@@ -1,14 +1,12 @@
 # SleepBar release pipeline.
 #
-# Runs here, in the public repo, so that macOS runners are free. The app source
-# is checked out from nateships/sleepbar-private with PRIVATE_REPO_TOKEN.
+# Trigger with a tag `vX.Y.Z`, or manually with a version. The manual run
+# defaults to a dry run: build, sign, notarize, upload the DMG as a workflow
+# artifact, publish nothing. A manual run builds the ref it is dispatched on.
 #
-# Trigger with a tag `vX.Y.Z` on this repo, or manually with a version.
-# The manual run defaults to a dry run: build, sign, notarize, upload the DMG
-# as a workflow artifact, publish nothing.
-#
-# Logs are public. Secrets are masked by GitHub. Source file names appear in
-# build output.
+# Publishing creates the GitHub release, commits site/appcast.xml and
+# site/CHANGELOG.md to main (Cloudflare Pages deploys site/), and bumps the
+# Homebrew cask in nateships/homebrew-tap.
 
 name: Release
 
@@ -18,13 +16,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build (X.Y.Z). Must have a CHANGELOG.md section in sleepbar-private."
+        description: "Version to build (X.Y.Z). Must have a CHANGELOG.md section."
         required: true
-      source_ref:
-        description: "Branch, tag, or SHA of sleepbar-private to build"
-        default: main
       publish:
-        description: "Publish the GitHub release and update the website"
+        description: "Publish the GitHub release, update the website and the Homebrew cask"
         type: boolean
         default: false
       tap_only:
@@ -47,27 +42,11 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       publish: ${{ steps.version.outputs.publish }}
-    defaults:
-      run:
-        working-directory: src
     steps:
-      - name: Check out website repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          path: site
-
-      - name: Check out app source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: nateships/sleepbar-private
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-          ref: ${{ inputs.source_ref || 'main' }}
-          path: src
-          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          working_directory: src
           cache: true
 
       - name: Resolve version
@@ -85,13 +64,12 @@ jobs:
           {
             echo "VERSION=$VERSION"
             echo "PUBLISH=$PUBLISH"
-            echo "SOURCE_SHA=$(git rev-parse HEAD)"
           } >> "$GITHUB_ENV"
           {
             echo "version=$VERSION"
             echo "publish=$PUBLISH"
           } >> "$GITHUB_OUTPUT"
-          echo "Building $VERSION from sleepbar-private@$(git rev-parse --short HEAD) (publish=$PUBLISH)"
+          echo "Building $VERSION from $(git rev-parse --short HEAD) (publish=$PUBLISH)"
           if [ "$PUBLISH" = "true" ] && gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release v$VERSION already exists" >&2
             exit 1
@@ -101,7 +79,7 @@ jobs:
         run: |
           mkdir -p build
           mise run release-notes > build/notes.md
-          printf '\n---\nBuilt from sleepbar-private@%s\n' "$SOURCE_SHA" >> build/notes.md
+          printf '\n---\nBuilt from %s\n' "$GITHUB_SHA" >> build/notes.md
         env:
           MISE_TASK_OUTPUT: quiet
 
@@ -167,14 +145,14 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: SleepBar-${{ env.VERSION }}
-          path: src/build/SleepBar.dmg
+          path: build/SleepBar.dmg
           if-no-files-found: error
 
       - name: Update appcast
         if: env.PUBLISH == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: mise run appcast "$GITHUB_WORKSPACE/site"
+        run: mise run appcast site
 
       - name: Publish GitHub release
         if: env.PUBLISH == 'true'
@@ -189,14 +167,13 @@ jobs:
             "build/SleepBar-$VERSION.dmg" \
             build/SleepBar.dmg
 
-      - name: Push appcast and changelog to website
+      - name: Push appcast and changelog to the website
         if: env.PUBLISH == 'true'
-        working-directory: site
         run: |
-          cp ../src/CHANGELOG.md CHANGELOG.md
+          cp CHANGELOG.md site/CHANGELOG.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add appcast.xml CHANGELOG.md
+          git add site/appcast.xml site/CHANGELOG.md
           git commit -m "Release SleepBar $VERSION"
           git push origin HEAD:main
 
