@@ -1,8 +1,8 @@
 #!/bin/bash
-# Sign the DMG with the Sparkle EdDSA key and update the appcast in the
-# website checkout.
+# Sign the DMG with the Sparkle EdDSA key and write build/appcast/appcast.xml.
+# The release workflow uploads that file as a release asset next to the DMG.
 #
-# Usage: scripts/appcast.sh <site-dir>
+# Usage: scripts/appcast.sh
 #
 # Requires:
 #   VERSION              semver of the DMG in build/
@@ -10,14 +10,16 @@
 #                        read from the login keychain (local fallback).
 #   A prior build so that Sparkle's tools exist in DerivedData.
 #
+# The previous appcast is fetched from the latest GitHub release so that
+# generate_appcast keeps the last few items. sleepbar.app/appcast.xml
+# redirects to that same asset (see site/_redirects).
+#
 # The enclosure URL points at the versioned asset on the GitHub release:
 #   https://github.com/nateships/sleepbar/releases/download/v<VERSION>/SleepBar-<VERSION>.dmg
 
 source "$(dirname "$0")/common.sh"
 require_version
 
-SITE_DIR="${1:?Usage: $0 <site-dir>}"
-[ -d "$SITE_DIR" ] || { echo "Site dir not found: $SITE_DIR" >&2; exit 1; }
 [ -f "$DMG_PATH" ] || { echo "DMG not found: $DMG_PATH. Run scripts/dmg.sh first." >&2; exit 1; }
 
 SPARKLE_BIN="$DERIVED_DATA_PATH/SourcePackages/artifacts/sparkle/Sparkle/bin"
@@ -28,7 +30,14 @@ WORK="$BUILD_DIR/appcast"
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cp "$DMG_PATH" "$WORK/SleepBar-$VERSION.dmg"
-[ -f "$SITE_DIR/appcast.xml" ] && cp "$SITE_DIR/appcast.xml" "$WORK/appcast.xml"
+
+PREVIOUS_APPCAST_URL="https://github.com/$RELEASES_REPO/releases/latest/download/appcast.xml"
+if curl -fsSL -o "$WORK/appcast.xml" "$PREVIOUS_APPCAST_URL"; then
+    echo "→ Seeded from $PREVIOUS_APPCAST_URL"
+else
+    echo "→ No previous appcast at $PREVIOUS_APPCAST_URL. Starting a new one."
+    rm -f "$WORK/appcast.xml"
+fi
 
 KEY_ARGS=()
 KEY_FILE=""
@@ -47,6 +56,5 @@ echo "→ Generating appcast"
     --maximum-versions 3 \
     "$WORK"
 
-cp "$WORK/appcast.xml" "$SITE_DIR/appcast.xml"
-echo "✓ Updated: $SITE_DIR/appcast.xml"
-grep -E "shortVersionString|enclosure" "$SITE_DIR/appcast.xml" | head -4
+echo "✓ Wrote: $WORK/appcast.xml"
+grep -E "shortVersionString|enclosure" "$WORK/appcast.xml" | head -4

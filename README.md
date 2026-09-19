@@ -154,15 +154,14 @@ The version numbers in the Xcode project are not used for releases. The release 
 3. Notarizes and staples the app (`scripts/notarize.sh app`), so it verifies offline and Sparkle installs it without a round trip to Apple
 4. Builds and signs the DMG from the stapled app (`scripts/dmg.sh`)
 5. Notarizes and staples the DMG (`scripts/notarize.sh dmg`)
-6. Signs the DMG with the Sparkle EdDSA key and updates `site/appcast.xml` (`scripts/appcast.sh`)
-7. Creates the GitHub release with `SleepBar-1.2.1.dmg` and `SleepBar.dmg`
-8. Commits `site/appcast.xml` and `site/CHANGELOG.md` to `main`. Cloudflare Pages deploys `site/`.
-9. Bumps `Casks/sleepbar.rb` in `nateships/homebrew-tap`. If only this step fails, rerun the workflow with `tap_only` checked and the version.
+6. Signs the DMG with the Sparkle EdDSA key and writes `build/appcast/appcast.xml`, seeded from the previous release's appcast (`scripts/appcast.sh`)
+7. Creates the GitHub release with `SleepBar-1.2.1.dmg`, `SleepBar.dmg` and `appcast.xml`. `https://sleepbar.app/appcast.xml` redirects to the latest release's `appcast.xml` (see `site/_redirects`), so the feed updates the moment the release is published.
+8. Bumps `Casks/sleepbar.rb` in `nateships/homebrew-tap`. If only this step fails, rerun the workflow with `tap_only` checked and the version.
 
 ### 4. Verify
 
 1. Install the previous version, open "Check for Updates", confirm the update installs.
-2. `https://sleepbar.app/appcast.xml` shows the new version (cached for 5 minutes).
+2. `https://sleepbar.app/appcast.xml` shows the new version.
 
 ---
 
@@ -208,11 +207,11 @@ sleepbar/
 │   └── Info.plist                 # Sparkle feed URL and public key
 ├── SleepBarTests/                 # Unit tests
 ├── scripts/                       # Build, sign, notarize, appcast (used by mise tasks and CI)
-├── site/                          # sleepbar.app (Cloudflare Pages root), appcast.xml, changelog copy
+├── site/                          # sleepbar.app (Cloudflare Pages root); redirects appcast.xml and CHANGELOG.md to GitHub
 ├── .github/workflows/
 │   ├── ci.yml                     # Lint and build on PRs and main
 │   └── release.yml                # Tag-driven release
-├── CHANGELOG.md                   # Source of truth; the release workflow copies it to site/
+├── CHANGELOG.md                   # Source of truth; the website fetches it from main via redirect
 ├── LICENSE                        # GPL-3.0
 └── mise.toml                      # Toolchain pins and tasks
 ```

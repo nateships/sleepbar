@@ -6,10 +6,6 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   
-# Cache appcast for 5 minutes (allow frequent update checks)
-/appcast.xml
-  Cache-Control: public, max-age=300
-
 # Cache static assets for 1 week
 /media/*
   Cache-Control: public, max-age=604800

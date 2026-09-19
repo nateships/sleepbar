@@ -51,7 +51,7 @@ arg "<target>" help="What to notarize" {
 run = 'scripts/notarize.sh "$usage_target"'
 
 [tasks.appcast]
-description = "Update the Sparkle appcast. Usage: mise run appcast <site-dir>. Needs VERSION"
+description = "Sign the DMG and write build/appcast/appcast.xml. Needs VERSION"
 run = "scripts/appcast.sh"
 
 [tasks.release-notes]
