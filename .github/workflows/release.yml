@@ -4,9 +4,9 @@
 # defaults to a dry run: build, sign, notarize, upload the DMG as a workflow
 # artifact, publish nothing. A manual run builds the ref it is dispatched on.
 #
-# Publishing creates the GitHub release, commits site/appcast.xml and
-# site/CHANGELOG.md to main (Cloudflare Pages deploys site/), and bumps the
-# Homebrew cask in nateships/homebrew-tap.
+# Publishing creates the GitHub release with the DMG and appcast.xml as
+# assets (sleepbar.app/appcast.xml redirects to the latest release's copy),
+# and bumps the Homebrew cask in nateships/homebrew-tap.
 
 name: Release
 
@@ -152,7 +152,7 @@ jobs:
         if: env.PUBLISH == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: mise run appcast site
+        run: mise run appcast
 
       - name: Publish GitHub release
         if: env.PUBLISH == 'true'
@@ -165,17 +165,8 @@ jobs:
             --title "SleepBar $VERSION" \
             --notes-file build/notes.md \
             "build/SleepBar-$VERSION.dmg" \
-            build/SleepBar.dmg
-
-      - name: Push appcast and changelog to the website
-        if: env.PUBLISH == 'true'
-        run: |
-          cp CHANGELOG.md site/CHANGELOG.md
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/appcast.xml site/CHANGELOG.md
-          git commit -m "Release SleepBar $VERSION"
-          git push origin HEAD:main
+            build/SleepBar.dmg \
+            build/appcast/appcast.xml
 
       - name: Clean up keychain
         if: always()

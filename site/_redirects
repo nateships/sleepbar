@@ -4,3 +4,7 @@ https://www.sleepbar.app/* https://sleepbar.app/:splat 301
 # Redirect old paths if you ever restructure
 # /download /index.html#download 302
 
+# The Sparkle feed and the changelog live on GitHub. The app polls
+# sleepbar.app/appcast.xml, so this path must keep working.
+/appcast.xml https://github.com/nateships/sleepbar/releases/latest/download/appcast.xml 302
+/CHANGELOG.md https://raw.githubusercontent.com/nateships/sleepbar/main/CHANGELOG.md 302
