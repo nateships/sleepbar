@@ -19,7 +19,7 @@ description = "Lint GitHub Actions workflows"
 run = "actionlint"
 
 [tasks.release]
-description = "Publish a release from main. Usage: mise run release 1.1.1"
+description = "Publish a release by hand, without release-please. Needs a CHANGELOG.md section. Usage: mise run release 1.1.1"
 usage = '''
 arg "<version>" help="Version to release, for example 1.1.1"
 '''

@@ -1,12 +1,18 @@
 # SleepBar release pipeline.
 #
-# Trigger with a tag `vX.Y.Z`, or manually with a version. The manual run
-# defaults to a dry run: build, sign, notarize, upload the DMG as a workflow
-# artifact, publish nothing. A manual run builds the ref it is dispatched on.
+# Normal path: merging the release-please pull request creates the tag and a
+# draft GitHub release with the changelog as notes. The tag push runs this
+# workflow, which builds, signs, and notarizes the DMG, attaches it and
+# appcast.xml to that draft, and publishes the release. "latest" and the
+# Sparkle feed (sleepbar.app/appcast.xml redirects to the latest release's
+# appcast.xml) move to the new version only at that point.
 #
-# Publishing creates the GitHub release with the DMG and appcast.xml as
-# assets (sleepbar.app/appcast.xml redirects to the latest release's copy),
-# and bumps the Homebrew cask in nateships/homebrew-tap.
+# A manual run defaults to a dry run: build, sign, notarize, upload the DMG as
+# a workflow artifact, publish nothing. It builds the ref it is dispatched on.
+# A manual run with publish creates the release itself from the CHANGELOG.md
+# section, for a release made without release-please.
+#
+# Publishing also bumps the Homebrew cask in nateships/homebrew-tap.
 
 name: Release
 
@@ -16,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build (X.Y.Z). Must have a CHANGELOG.md section."
+        description: "Version to build (X.Y.Z). Publishing needs a CHANGELOG.md section."
         required: true
       publish:
         description: "Publish the GitHub release, update the website and the Homebrew cask"
@@ -70,18 +76,35 @@ jobs:
             echo "publish=$PUBLISH"
           } >> "$GITHUB_OUTPUT"
           echo "Building $VERSION from $(git rev-parse --short HEAD) (publish=$PUBLISH)"
-          if [ "$PUBLISH" = "true" ] && gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release v$VERSION already exists" >&2
-            exit 1
+          # A draft is the release that release-please made; this run fills
+          # it. A published release must not be built again.
+          if [ "$PUBLISH" = "true" ] && IS_DRAFT="$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [ "$IS_DRAFT" != "true" ]; then
+              echo "Release v$VERSION is already published" >&2
+              exit 1
+            fi
+            echo "Release v$VERSION exists as a draft; this run attaches its assets."
           fi
 
-      - name: Check release notes exist
+      - name: Write release notes
+        # The draft that release-please made carries the changelog section as
+        # its notes. A manual publish takes the section from CHANGELOG.md and
+        # fails when it is missing. A dry run needs no notes.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MISE_TASK_OUTPUT: quiet
         run: |
           mkdir -p build
-          mise run release-notes > build/notes.md
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json body --jq .body > build/notes.md 2>/dev/null \
+             && [ -n "$(tr -d '[:space:]' < build/notes.md)" ]; then
+            echo "Using the notes of the existing release."
+          elif [ "$PUBLISH" = "true" ]; then
+            mise run release-notes > build/notes.md
+          else
+            echo "Dry run of $VERSION." > build/notes.md
+          fi
           printf '\n---\nBuilt from %s\n' "$GITHUB_SHA" >> build/notes.md
-        env:
-          MISE_TASK_OUTPUT: quiet
+          cat build/notes.md
 
       - name: Import signing certificate and provisioning profile
         env:
@@ -160,13 +183,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp build/SleepBar.dmg "build/SleepBar-$VERSION.dmg"
-          gh release create "v$VERSION" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "SleepBar $VERSION" \
-            --notes-file build/notes.md \
-            "build/SleepBar-$VERSION.dmg" \
-            build/SleepBar.dmg \
-            build/appcast/appcast.xml
+          ASSETS=("build/SleepBar-$VERSION.dmg" build/SleepBar.dmg build/appcast/appcast.xml)
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # The draft from release-please. Attach the assets first, then
+            # publish it, so the release is never public without them.
+            gh release upload "v$VERSION" --repo "$GITHUB_REPOSITORY" --clobber "${ASSETS[@]}"
+            gh release edit "v$VERSION" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "SleepBar $VERSION" \
+              --notes-file build/notes.md \
+              --draft=false \
+              --latest
+          else
+            gh release create "v$VERSION" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "SleepBar $VERSION" \
+              --notes-file build/notes.md \
+              "${ASSETS[@]}"
+          fi
 
       - name: Clean up keychain
         if: always()
