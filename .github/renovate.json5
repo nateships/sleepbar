@@ -27,14 +27,17 @@
       versioningTemplate: "semver",
     },
     {
-      // Commit pins without a version: follow the main branch.
+      // Commit pins without a version: follow the default branch. Xcode does
+      // not record the branch, so it is named here. master is the default
+      // branch of ejbills/mediaremote-adapter. A commit-pinned package on a
+      // different branch needs its own manager.
       customType: "regex",
       managerFilePatterns: ["/(^|/)Package\\.resolved$/"],
       matchStrings: [
         '"location" : "(?<packageName>https://github\\.com/[^"]+?)(?:\\.git)?",\\s*"state" : \\{\\s*"revision" : "(?<currentDigest>[a-f0-9]{40})"\\s*\\}',
       ],
       depNameTemplate: "{{{packageName}}}",
-      currentValueTemplate: "main",
+      currentValueTemplate: "master",
       datasourceTemplate: "git-refs",
     },
     {
@@ -45,7 +48,7 @@
         'repositoryURL = "(?<packageName>https://github\\.com/[^"]+?)(?:\\.git)?";\\s*requirement = \\{\\s*kind = revision;\\s*revision = (?<currentDigest>[a-f0-9]{40});',
       ],
       depNameTemplate: "{{{packageName}}}",
-      currentValueTemplate: "main",
+      currentValueTemplate: "master",
       datasourceTemplate: "git-refs",
     },
   ],
