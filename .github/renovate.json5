@@ -7,7 +7,55 @@
   // Wait for a release to age before proposing it. Limits exposure to a
   // compromised tag that gets pulled quickly.
   minimumReleaseAge: "3 days",
+  // Swift packages are resolved by Xcode's Swift Package Manager inside the
+  // xcodeproj. Renovate's swift manager reads Package.swift only, so these
+  // regex managers track the pins in Package.resolved and, for packages
+  // pinned to a commit, the revision in project.pbxproj. Both files must
+  // carry the same commit; Renovate updates every match of a dependency in
+  // one PR. The minimumVersion of a versioned package in project.pbxproj is
+  // a floor and stays as it is.
+  customManagers: [
+    {
+      // Versioned pins: "version" is the tag, "revision" is its commit.
+      customType: "regex",
+      managerFilePatterns: ["/(^|/)Package\\.resolved$/"],
+      matchStrings: [
+        '"location" : "https://github\\.com/(?<packageName>[^"/]+/[^"/]+?)(?:\\.git)?",\\s*"state" : \\{\\s*"revision" : "(?<currentDigest>[a-f0-9]{40})",\\s*"version" : "(?<currentValue>[^"]+)"',
+      ],
+      depNameTemplate: "{{{packageName}}}",
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+    },
+    {
+      // Commit pins without a version: follow the main branch.
+      customType: "regex",
+      managerFilePatterns: ["/(^|/)Package\\.resolved$/"],
+      matchStrings: [
+        '"location" : "(?<packageName>https://github\\.com/[^"]+?)(?:\\.git)?",\\s*"state" : \\{\\s*"revision" : "(?<currentDigest>[a-f0-9]{40})"\\s*\\}',
+      ],
+      depNameTemplate: "{{{packageName}}}",
+      currentValueTemplate: "main",
+      datasourceTemplate: "git-refs",
+    },
+    {
+      // The same commit pins in the Xcode project.
+      customType: "regex",
+      managerFilePatterns: ["/(^|/)project\\.pbxproj$/"],
+      matchStrings: [
+        'repositoryURL = "(?<packageName>https://github\\.com/[^"]+?)(?:\\.git)?";\\s*requirement = \\{\\s*kind = revision;\\s*revision = (?<currentDigest>[a-f0-9]{40});',
+      ],
+      depNameTemplate: "{{{packageName}}}",
+      currentValueTemplate: "main",
+      datasourceTemplate: "git-refs",
+    },
+  ],
   packageRules: [
+    {
+      // Swift packages ship inside the app. Review each update by hand.
+      matchManagers: ["custom.regex"],
+      groupName: "Swift packages",
+      automerge: false,
+    },
     {
       // GitHub Actions: patch, minor, and digest bumps merge once CI passes.
       // Majors open a PR for review.
@@ -34,7 +82,4 @@
       groupName: "mise tools (major)",
     },
   ],
-  // Sparkle is resolved by Xcode's Swift Package Manager inside the
-  // xcodeproj. Renovate has no manager for that. Update it in Xcode:
-  // File -> Packages -> Update to Latest Package Versions.
 }
