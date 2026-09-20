@@ -37,6 +37,7 @@ SleepBar is a menu bar app that puts your Mac to sleep after a duration or at a 
 - **Quick Timers**: Preset options for 15, 30, 60, and 120 minutes
 - **Custom Duration**: Set any duration with hours and minutes
 - **Specific Time**: Schedule sleep for an exact time
+- **When Media Ends**: Sleep when the video or track playing in any app finishes
 - **Sleep Modes**: Choose system sleep or display-only sleep
 - **Pre-Sleep Warning**: Configurable alert before sleep, with snooze and Sleep Now
 - **Open at Login**: Start SleepBar when you log in

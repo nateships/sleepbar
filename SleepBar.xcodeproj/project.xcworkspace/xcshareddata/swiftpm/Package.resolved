@@ -1,6 +1,14 @@
 {
-  "originHash" : "e721da7f9826abdffcb6185e886155efa2514bd6234475f1afa893e29eb258d6",
+  "originHash" : "fb7d7647cfdcdb6cfe48112103992efcd6711d21d21b2b2e8cc7db44f3001b5d",
   "pins" : [
+    {
+      "identity" : "mediaremote-adapter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ejbills/mediaremote-adapter.git",
+      "state" : {
+        "revision" : "5b6afde3f501a3da567e23bf7f23d562938a1809"
+      }
+    },
     {
       "identity" : "sparkle",
       "kind" : "remoteSourceControl",

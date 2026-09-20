@@ -69,6 +69,9 @@ struct ContentView: View {
     
     // Force refresh of target times when menu opens
     @State private var refreshID = UUID()
+
+    // Current Now Playing item. Queried each time the menu opens.
+    @StateObject private var nowPlaying = NowPlayingMonitor()
     
     enum CustomTimerMode: String, CaseIterable {
         case duration = "Duration"
@@ -107,6 +110,7 @@ struct ContentView: View {
             showCustomInput = customTimerWasLastUsed
             restoreEmptyCustomInputs()
             refreshID = UUID() // Refresh target times whenever menu opens
+            nowPlaying.refresh()
         }
     }
     
@@ -272,6 +276,55 @@ struct ContentView: View {
             }
             .padding(.horizontal, 16)
             .id(refreshID) // Force refresh when refreshID changes
+
+            // Sleep when the current Now Playing item ends
+            if let item = nowPlaying.item {
+                Button(action: {
+                    if licenseManager.canUseApp {
+                        customTimerWasLastUsed = false
+                        timerManager.startTimer(until: item.endDate)
+                    } else {
+                        openWindow(id: "license")
+                    }
+                }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: licenseManager.canUseApp ? "play.rectangle.fill" : "lock.fill")
+                            .font(.title3)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("When media ends")
+                                .font(.callout)
+                                .fontWeight(.semibold)
+                            Text([item.title, item.appName]
+                                .compactMap { $0 }
+                                .joined(separator: " \u{00B7} "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 12)
+                        if licenseManager.canUseApp {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(compactDuration(item.endDate.timeIntervalSinceNow))
+                                    .font(.callout)
+                                    .fontWeight(.semibold)
+                                Text(SleepTimerManager.timeFormatter.string(from: item.endDate))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .fixedSize()
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(licenseManager.canUseApp ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15))
+                    .foregroundStyle(licenseManager.canUseApp ? .blue : .secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
             
             // Custom Timer Toggle
             Button(action: {
@@ -763,6 +816,17 @@ struct ContentView: View {
         return SleepTimerManager.timeFormatter.string(from: targetDate)
     }
     
+    /// "48m" or "1h 12m". Used for the Now Playing row.
+    private func compactDuration(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds.rounded()) / 60
+        let hours = total / 60
+        let minutes = total % 60
+        if hours > 0 {
+            return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
+        }
+        return "\(max(minutes, 1))m"
+    }
+
     private func targetTimeForCustomDuration() -> String {
         let hours = Int(hoursText) ?? 0
         let minutes = Int(minutesText) ?? 0

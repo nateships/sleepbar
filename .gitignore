@@ -37,3 +37,6 @@ build/
 # Temporary files
 *.tmp
 *.log
+
+# Coverage data written when a Debug app quits
+*.profraw
