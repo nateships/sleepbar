@@ -1147,14 +1147,14 @@
                     const subsectionText = line.replace('#### ', '');
                     html += `<div class="changelog-subsection">${parseInlineMarkdown(subsectionText)}</div>`;
                 }
-                // List items: - Item text
-                else if (line.startsWith('- ')) {
+                // List items: "- Item text" or "* Item text" (release-please)
+                else if (/^[-*] /.test(line)) {
                     if (!inList) {
                         html += '<ul class="changelog-list">';
                         inList = true;
                     }
                     
-                    const itemText = line.replace('- ', '');
+                    const itemText = line.replace(/^[-*] /, '');
                     html += `<li>${parseInlineMarkdown(itemText)}</li>`;
                 }
             }
