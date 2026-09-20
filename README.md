@@ -112,43 +112,47 @@ Build output goes to `build/` (gitignored). The website lives in `site/` and is 
 
 ## Releasing
 
-Releases are built, signed, notarized, and published by GitHub Actions (`.github/workflows/release.yml`). Nothing is built on a developer machine. Build logs are public; GitHub masks secrets.
+Releases are built, signed, notarized, and published by GitHub Actions. Nothing is built on a developer machine. Build logs are public; GitHub masks secrets.
 
-### 1. Write the changelog
+### Commits
 
-Add a section to `CHANGELOG.md` and merge to `main`. The release fails if the section is missing. Entries describe current behavior, not what changed from before.
+Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`, `chore:`, `ci:`. Pull requests are squash-merged, so the pull request title is the commit subject. A `feat` bumps the minor version, a `fix` bumps the patch version, and `feat!` or a `BREAKING CHANGE:` footer bumps the major version. Other types do not release.
 
-```markdown
-## [1.2.1] - 10-01-2026
+### Release pull request
 
-#### Bug Fixes
-- Description
-```
+[release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`) keeps a pull request named `chore(main): release X.Y.Z` open on `main`. It updates `CHANGELOG.md`, `version.txt`, and `.release-please-manifest.json` from the commits since the last release. Edit the changelog in that pull request if a line needs better wording.
 
-### 2. Dry run
+Merging it:
+
+1. Creates the tag `vX.Y.Z` and a GitHub release with the changelog section as notes. The release becomes a draft at once, so "latest", the Sparkle feed, and the Homebrew cask stay on the previous version.
+2. The tag starts the Release workflow (`.github/workflows/release.yml`), which attaches the assets to the draft and publishes it.
+
+### Dry run
 
 ```bash
 mise run release-dry-run 1.2.1            # builds main
 mise run release-dry-run 1.2.1 my-branch
 ```
 
-Builds, signs, notarizes, uploads `SleepBar.dmg` as a workflow artifact. Publishes nothing.
+Builds, signs, notarizes, uploads `SleepBar.dmg` as a workflow artifact. Publishes nothing. Use it before merging the release pull request when the build has changed.
 
-### 3. Release
+### Manual release
 
 ```bash
 mise run release 1.2.1
 ```
 
-Equivalent: push tag `v1.2.1`, or run the workflow from the Actions tab.
+Publishes without release-please. `CHANGELOG.md` must have a `## [1.2.1]` section, or the run fails. Equivalent: run the workflow from the Actions tab with `publish` checked.
 
-The version input is the source of truth. CI sets:
+### Version numbers
+
+The tag is the source of truth. CI sets:
 - `MARKETING_VERSION` = `1.2.1`
 - `CURRENT_PROJECT_VERSION` (Sparkle build number) = `10201` (major×10000 + minor×100 + patch)
 
 The version numbers in the Xcode project are not used for releases. The release notes record the commit that was built.
 
-### What the workflow does
+### What the Release workflow does
 
 1. Imports the Developer ID certificate and provisioning profile into a temporary keychain
 2. Archives and exports the app with Developer ID (`scripts/archive.sh`)
@@ -156,10 +160,10 @@ The version numbers in the Xcode project are not used for releases. The release 
 4. Builds and signs the DMG from the stapled app (`scripts/dmg.sh`)
 5. Notarizes and staples the DMG (`scripts/notarize.sh dmg`)
 6. Signs the DMG with the Sparkle EdDSA key and writes `build/appcast/appcast.xml`, seeded from the previous release's appcast (`scripts/appcast.sh`)
-7. Creates the GitHub release with `SleepBar-1.2.1.dmg`, `SleepBar.dmg` and `appcast.xml`. `https://sleepbar.app/appcast.xml` redirects to the latest release's `appcast.xml` (see `site/_redirects`), so the feed updates the moment the release is published.
+7. Attaches `SleepBar-1.2.1.dmg`, `SleepBar.dmg` and `appcast.xml` to the draft release and publishes it. A manual release creates the release instead. `https://sleepbar.app/appcast.xml` redirects to the latest release's `appcast.xml` (see `site/_redirects`), so the feed updates the moment the release is published.
 8. Bumps `Casks/sleepbar.rb` in `nateships/homebrew-tap`. If only this step fails, rerun the workflow with `tap_only` checked and the version.
 
-### 4. Verify
+### Verify
 
 1. Install the previous version, open "Check for Updates", confirm the update installs.
 2. `https://sleepbar.app/appcast.xml` shows the new version.
@@ -179,6 +183,7 @@ Set under Settings → Secrets and variables → Actions. Sources of truth are i
 | `NOTARY_PASSWORD` | App-specific password | 1Password "notarytool app specific password" |
 | `SPARKLE_PRIVATE_KEY` | Sparkle EdDSA private key, base64 string | 1Password "SleepBar Sparkle Keys". Public key must match `SUPublicEDKey` in `SleepBar/Info.plist` |
 | `HOMEBREW_TAP_TOKEN` | Fine-grained PAT, repository `homebrew-tap`, Contents: read and write | 1Password `rolle` vault, "rolle-homebrew-tap" |
+| `RELEASE_PLEASE_TOKEN` | Fine-grained PAT, repository `sleepbar`, Contents and Pull requests: read and write. The default `GITHUB_TOKEN` cannot be used: its pushes and tags start no workflows | 1Password, same kind of token as rolle's `RELEASE_PLEASE_TOKEN` |
 
 The Sparkle private key is the only thing that cannot be re-issued. If it is lost, installed apps reject every future update.
 
