@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0](https://github.com/nateships/sleepbar/compare/v1.2.0...v1.3.0) (2026-09-20)
+
+
+### Features
+
+* sleep when the current media item ends ([3098313](https://github.com/nateships/sleepbar/commit/3098313039ffdcd5b0fedb9c00d8c7d37c6a3c44))
+* sleep when the current media item ends ([95c788a](https://github.com/nateships/sleepbar/commit/95c788abc3ac431eb628d5d7190f0ba8fdb78764))
+
+
+### Bug Fixes
+
+* keep the provisioning profile off Swift package targets ([833deea](https://github.com/nateships/sleepbar/commit/833deeac36bcecb34470998fda56ad1f99ff61ad))
+
 ## [1.2.0] - 09-13-2026
 
 #### Added
@@ -102,4 +115,3 @@ Have a feature request? [Open an issue](https://github.com/nateships/sleepbar/is
 ---
 
 [1.0.0]: https://github.com/nateships/sleepbar/releases/tag/v1.0.0
-
