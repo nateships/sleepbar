@@ -10,6 +10,10 @@ DERIVED_DATA_PATH = "{{config_root}}/build/DerivedData"
 description = "Debug build without code signing"
 run = "scripts/build.sh"
 
+[tasks.dev]
+description = "Signed Debug build, then run the app in the foreground. Ctrl-C quits"
+run = "scripts/dev.sh"
+
 [tasks.test]
 description = "Run unit tests (Xcode must be signed in to the team)"
 run = "scripts/test.sh"

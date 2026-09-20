@@ -18,6 +18,11 @@ mkdir -p "$BUILD_DIR"
 # The project sets CODE_SIGN_IDENTITY[sdk=macosx*] = "Apple Development".
 # A conditional setting cannot be overridden on the command line, so the
 # release signing settings go through an xcconfig file.
+#
+# The xcconfig applies to every target in the build, and Swift package
+# targets reject a provisioning profile. The profile therefore goes into
+# SLEEPBAR_PROVISIONING_PROFILE, which only the app target reads through
+# its PROVISIONING_PROFILE_SPECIFIER setting in the Xcode project.
 XCCONFIG="$BUILD_DIR/release.xcconfig"
 cat > "$XCCONFIG" <<EOF
 MARKETING_VERSION = $VERSION
@@ -26,7 +31,7 @@ CODE_SIGN_STYLE = Manual
 DEVELOPMENT_TEAM = $TEAM_ID
 CODE_SIGN_IDENTITY = $SIGNING_IDENTITY
 CODE_SIGN_IDENTITY[sdk=macosx*] = $SIGNING_IDENTITY
-PROVISIONING_PROFILE_SPECIFIER = $PROVISIONING_PROFILE_NAME
+SLEEPBAR_PROVISIONING_PROFILE = $PROVISIONING_PROFILE_NAME
 EOF
 
 echo "→ Archiving $SCHEME $VERSION ($BUILD_NUMBER)"

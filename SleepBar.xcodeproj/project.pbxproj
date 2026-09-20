@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		B9729E052EB528EE00C0F6F1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B9729E042EB528EE00C0F6F1 /* Sparkle */; };
+		B9729E082EB528EE00C0F6F1 /* MediaRemoteAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = B9729E0A2EB528EE00C0F6F1 /* MediaRemoteAdapter */; };
+		B9729E0B2EB528EE00C0F6F1 /* MediaRemoteAdapter in Embed Frameworks */ = {isa = PBXBuildFile; productRef = B9729E0A2EB528EE00C0F6F1 /* MediaRemoteAdapter */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B9729E0D2EB528EE00C0F6F1 /* MediaRemoteAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = B9729E0E2EB528EE00C0F6F1 /* MediaRemoteAdapter */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,11 +54,26 @@
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		B9729E0C2EB528EE00C0F6F1 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				B9729E0B2EB528EE00C0F6F1 /* MediaRemoteAdapter in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		AA00000E2ECC010800C0F6F1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9729E0D2EB528EE00C0F6F1 /* MediaRemoteAdapter in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,6 +82,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B9729E052EB528EE00C0F6F1 /* Sparkle in Frameworks */,
+				B9729E082EB528EE00C0F6F1 /* MediaRemoteAdapter in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -108,6 +127,9 @@
 				AA00000B2ECC010800C0F6F1 /* SleepBarTests */,
 			);
 			name = SleepBarTests;
+			packageProductDependencies = (
+				B9729E0E2EB528EE00C0F6F1 /* MediaRemoteAdapter */,
+			);
 			productName = SleepBarTests;
 			productReference = AA00000A2ECC010800C0F6F1 /* SleepBarTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -119,6 +141,7 @@
 				B9729DB52EB5010800C0F6F1 /* Sources */,
 				B9729DB62EB5010800C0F6F1 /* Frameworks */,
 				B9729DB72EB5010800C0F6F1 /* Resources */,
+				B9729E0C2EB528EE00C0F6F1 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -130,6 +153,7 @@
 			name = SleepBar;
 			packageProductDependencies = (
 				B9729E042EB528EE00C0F6F1 /* Sparkle */,
+				B9729E0A2EB528EE00C0F6F1 /* MediaRemoteAdapter */,
 			);
 			productName = SleepBar;
 			productReference = B9729DB92EB5010800C0F6F1 /* SleepBar.app */;
@@ -165,6 +189,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B9729E032EB528EE00C0F6F1 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				B9729E092EB528EE00C0F6F1 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B9729DBA2EB5010800C0F6F1 /* Products */;
@@ -446,6 +471,7 @@
 				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.sleepbar.SleepBar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(SLEEPBAR_PROVISIONING_PROFILE)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -497,6 +523,14 @@
 				minimumVersion = 2.8.0;
 			};
 		};
+		B9729E092EB528EE00C0F6F1 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ejbills/mediaremote-adapter.git";
+			requirement = {
+				kind = revision;
+				revision = 5b6afde3f501a3da567e23bf7f23d562938a1809;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -504,6 +538,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B9729E032EB528EE00C0F6F1 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		B9729E0A2EB528EE00C0F6F1 /* MediaRemoteAdapter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B9729E092EB528EE00C0F6F1 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */;
+			productName = MediaRemoteAdapter;
+		};
+		B9729E0E2EB528EE00C0F6F1 /* MediaRemoteAdapter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B9729E092EB528EE00C0F6F1 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */;
+			productName = MediaRemoteAdapter;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
