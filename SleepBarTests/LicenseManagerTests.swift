@@ -62,6 +62,30 @@ final class LicenseManagerTests: XCTestCase {
         XCTAssertFalse(manager.isTrialActive)
     }
     
+    func testRefreshTrialStatus_trialEndsWhileAppRuns_expires() {
+        let sixDaysAgo = Calendar.current.date(byAdding: .day, value: -6, to: Date())!
+        defaults.set(sixDaysAgo, forKey: LicenseManager.Keys.firstLaunchDate)
+        manager.checkTrialStatus()
+        XCTAssertTrue(manager.isTrialActive)
+        
+        let eightDaysAgo = Calendar.current.date(byAdding: .day, value: -8, to: Date())!
+        defaults.set(eightDaysAgo, forKey: LicenseManager.Keys.firstLaunchDate)
+        manager.refreshTrialStatus()
+        
+        XCTAssertFalse(manager.isTrialActive)
+        XCTAssertEqual(manager.daysRemainingInTrial, 0)
+    }
+    
+    func testRefreshTrialStatus_licensed_staysLicensed() {
+        let eightDaysAgo = Calendar.current.date(byAdding: .day, value: -8, to: Date())!
+        defaults.set(eightDaysAgo, forKey: LicenseManager.Keys.firstLaunchDate)
+        manager.isLicensed = true
+        
+        manager.refreshTrialStatus()
+        
+        XCTAssertTrue(manager.isLicensed)
+    }
+    
     // MARK: - getFirstLaunchDate
     
     func testGetFirstLaunchDate_createsDateOnFirstCall() {
