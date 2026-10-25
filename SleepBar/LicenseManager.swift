@@ -62,6 +62,7 @@ class LicenseManager: ObservableObject {
         self.defaults = .standard
         checkLicenseStatus()
         startPeriodicValidation()
+        startTrialRefresh()
     }
     
     init(defaults: UserDefaults) {
@@ -112,6 +113,18 @@ class LicenseManager: ObservableObject {
         }
     }
     
+    // The app can run for weeks without a relaunch. Check the trial each hour so that it ends on time.
+    private func startTrialRefresh() {
+        Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            self?.refreshTrialStatus()
+        }
+    }
+
+    func refreshTrialStatus() {
+        guard !isLicensed else { return }
+        checkTrialStatus()
+    }
+
     func checkTrialStatus() {
         let firstLaunch = getFirstLaunchDate()
         let daysSinceLaunch = Calendar.current.dateComponents([.day], from: firstLaunch, to: Date()).day ?? 0
