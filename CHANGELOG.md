@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* end the trial after 7 days even if SleepBar is never restarted ([049e77d](https://github.com/nateships/sleepbar/commit/049e77dd919d140eea524572bd8b7de384d27df8))
 * end the trial after 7 days even if SleepBar is never restarted ([70618d6](https://github.com/nateships/sleepbar/commit/70618d6f37e7c64f593cc5c713b583acf6569087))
 
 ## [1.3.0](https://github.com/nateships/sleepbar/compare/v1.2.0...v1.3.0) (2026-09-20)
@@ -20,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-* sleep when the current media item ends ([3098313](https://github.com/nateships/sleepbar/commit/3098313039ffdcd5b0fedb9c00d8c7d37c6a3c44))
 * sleep when the current media item ends ([95c788a](https://github.com/nateships/sleepbar/commit/95c788abc3ac431eb628d5d7190f0ba8fdb78764))
 
 
