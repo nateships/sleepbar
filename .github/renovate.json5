@@ -55,8 +55,11 @@
   packageRules: [
     {
       // Swift packages ship inside the app. Review each update by hand.
+      // The commit type is "fix" because release-please ignores "chore":
+      // a package update must cause a patch release.
       matchManagers: ["custom.regex"],
       groupName: "Swift packages",
+      semanticCommitType: "fix",
       automerge: false,
     },
     {
