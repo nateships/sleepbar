@@ -228,7 +228,7 @@ jobs:
           [ -n "$VERSION" ] || { echo "No version" >&2; exit 1; }
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478 # main
+      - uses: Homebrew/actions/setup-homebrew@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # main
 
       - name: Bump the cask in the tap
         env:
