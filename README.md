@@ -56,7 +56,7 @@ Every download is signed with a Developer ID certificate and notarized by Apple.
 - **7-day free trial** (no credit card required)
 - **$4.20** one-time purchase, lifetime updates, use on 3 Macs
 
-[Purchase License](https://shop.sleepbar.app/buy/8089829a-1927-4553-9b16-28aacdcfe904)
+[Purchase License](https://sleepbar.app/purchase)
 
 ## Support
 
