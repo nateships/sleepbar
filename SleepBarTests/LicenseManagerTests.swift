@@ -1,6 +1,33 @@
 import XCTest
 @testable import SleepBar
 
+// Answers the license requests in place of the network.
+final class StubURLProtocol: URLProtocol {
+    // Maps the last path component to a status code and a JSON body. No entry means no network.
+    nonisolated(unsafe) static var responses: [String: (status: Int, body: String)] = [:]
+    nonisolated(unsafe) static var requestedPaths: [String] = []
+    
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func stopLoading() {}
+    
+    override func startLoading() {
+        let path = request.url?.lastPathComponent ?? ""
+        Self.requestedPaths.append(path)
+        
+        guard let url = request.url,
+              let stub = Self.responses[path],
+              let response = HTTPURLResponse(url: url, statusCode: stub.status, httpVersion: nil, headerFields: nil) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
+        
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(stub.body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+
 @MainActor
 final class LicenseManagerTests: XCTestCase {
     
@@ -12,7 +39,34 @@ final class LicenseManagerTests: XCTestCase {
         super.setUp()
         defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        manager = LicenseManager(defaults: defaults)
+        StubURLProtocol.responses = [:]
+        StubURLProtocol.requestedPaths = []
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        manager = LicenseManager(defaults: defaults, session: URLSession(configuration: configuration))
+    }
+    
+    private func activationJSON(productId: String? = nil, email: String = "buyer@example.com") -> String {
+        let productId = productId ?? LicenseManager.productId
+        return """
+        {"id": "lki_new", "business_id": "bus_1", "name": "Mac", "license_key_id": "lic_1",
+         "created_at": "2027-01-01T00:00:00.000Z",
+         "customer": {"customer_id": "cus_1", "name": "Test Buyer", "email": "\(email)"},
+         "product": {"product_id": "\(productId)", "name": "SleepBar"}}
+        """
+    }
+    
+    private func storeLegacyLicense() {
+        defaults.set("ABCD-1234-EFGH-5678", forKey: LicenseManager.Keys.licenseKey)
+        defaults.set("lemon-instance", forKey: LicenseManager.Keys.instanceId)
+        manager.isLicensed = true
+    }
+    
+    private func storeDodoLicense() {
+        defaults.set("ABCD-1234-EFGH-5678", forKey: LicenseManager.Keys.licenseKey)
+        defaults.set("lki_old", forKey: LicenseManager.Keys.instanceId)
+        defaults.set(LicenseManager.dodoProvider, forKey: LicenseManager.Keys.licenseProvider)
+        manager.isLicensed = true
     }
     
     override func tearDown() {
@@ -106,75 +160,184 @@ final class LicenseManagerTests: XCTestCase {
         XCTAssertEqual(result.timeIntervalSince1970, specificDate.timeIntervalSince1970, accuracy: 1.0)
     }
     
-    // MARK: - validateProductIds
+    // MARK: - parseActivation
     
-    func testValidateProductIds_correctIds_returnsTrue() {
-        let meta: [String: Any] = [
-            "store_id": 237783,
-            "product_id": 681433
-        ]
-        XCTAssertTrue(manager.validateProductIds(meta: meta))
+    func testParseActivation_readsInstanceProductAndCustomer() {
+        let activation = manager.parseActivation(Data(activationJSON().utf8))
+        
+        XCTAssertEqual(activation?.instanceId, "lki_new")
+        XCTAssertEqual(activation?.productId, LicenseManager.productId)
+        XCTAssertEqual(activation?.customerName, "Test Buyer")
+        XCTAssertEqual(activation?.customerEmail, "buyer@example.com")
     }
     
-    func testValidateProductIds_wrongStoreId_returnsFalse() {
-        let meta: [String: Any] = [
-            "store_id": 999999,
-            "product_id": 681433
-        ]
-        XCTAssertFalse(manager.validateProductIds(meta: meta))
+    func testParseActivation_missingInstanceId_returnsNil() {
+        XCTAssertNil(manager.parseActivation(Data(#"{"name": "Mac"}"#.utf8)))
     }
     
-    func testValidateProductIds_wrongProductId_returnsFalse() {
-        let meta: [String: Any] = [
-            "store_id": 237783,
-            "product_id": 999999
-        ]
-        XCTAssertFalse(manager.validateProductIds(meta: meta))
+    func testParseActivation_missingProduct_hasNoProductId() {
+        let activation = manager.parseActivation(Data(#"{"id": "lki_new"}"#.utf8))
+        
+        XCTAssertEqual(activation?.instanceId, "lki_new")
+        XCTAssertNil(activation?.productId)
     }
     
-    func testValidateProductIds_missingStoreId_returnsFalse() {
-        let meta: [String: Any] = [
-            "product_id": 681433
-        ]
-        XCTAssertFalse(manager.validateProductIds(meta: meta))
+    // MARK: - Lemon Squeezy license moves to Dodo Payments
+    
+    func testIsLegacyLicense_withoutProvider_true() {
+        storeLegacyLicense()
+        XCTAssertTrue(manager.isLegacyLicense)
     }
     
-    func testValidateProductIds_missingProductId_returnsFalse() {
-        let meta: [String: Any] = [
-            "store_id": 237783
-        ]
-        XCTAssertFalse(manager.validateProductIds(meta: meta))
+    func testIsLegacyLicense_dodoProvider_false() {
+        storeDodoLicense()
+        XCTAssertFalse(manager.isLegacyLicense)
     }
     
-    func testValidateProductIds_wrongType_returnsFalse() {
-        let meta: [String: Any] = [
-            "store_id": "237783",
-            "product_id": 681433
-        ]
-        XCTAssertFalse(manager.validateProductIds(meta: meta))
+    func testRefreshLicense_legacyKeyAccepted_storesDodoActivation() async {
+        storeLegacyLicense()
+        StubURLProtocol.responses["activate"] = (201, activationJSON())
+        
+        await manager.refreshLicense()
+        
+        XCTAssertTrue(manager.isLicensed)
+        XCTAssertFalse(manager.isLegacyLicense)
+        XCTAssertEqual(defaults.string(forKey: LicenseManager.Keys.instanceId), "lki_new")
+        XCTAssertEqual(defaults.string(forKey: LicenseManager.Keys.licenseKey), "ABCD-1234-EFGH-5678")
+        XCTAssertEqual(manager.customerEmail, "buyer@example.com")
+        XCTAssertNotNil(defaults.object(forKey: LicenseManager.Keys.lastValidationDate))
+        XCTAssertEqual(StubURLProtocol.requestedPaths, ["activate"])
     }
     
-    // MARK: - formEncode
-    
-    func testFormEncode_plainText() {
-        XCTAssertEqual(manager.formEncode("hello"), "hello")
+    func testRefreshLicense_legacyKeyNotFound_revokesLicense() async {
+        storeLegacyLicense()
+        StubURLProtocol.responses["activate"] = (404, #"{"code": "NOT_FOUND"}"#)
+        
+        await manager.refreshLicense()
+        
+        XCTAssertFalse(manager.isLicensed)
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
     }
     
-    func testFormEncode_spaces() {
-        XCTAssertEqual(manager.formEncode("hello world"), "hello%20world")
+    func testRefreshLicense_legacyKeyNotActive_revokesLicense() async {
+        storeLegacyLicense()
+        StubURLProtocol.responses["activate"] = (403, "{}")
+        
+        await manager.refreshLicense()
+        
+        XCTAssertFalse(manager.isLicensed)
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
     }
     
-    func testFormEncode_specialCharacters() {
-        XCTAssertEqual(manager.formEncode("key=value&foo"), "key%3Dvalue%26foo")
+    func testRefreshLicense_legacyKeyAtActivationLimit_keepsLicense() async {
+        storeLegacyLicense()
+        StubURLProtocol.responses["activate"] = (422, "{}")
+        
+        await manager.refreshLicense()
+        
+        XCTAssertTrue(manager.isLicensed)
+        XCTAssertTrue(manager.isLegacyLicense)
+        XCTAssertEqual(defaults.string(forKey: LicenseManager.Keys.instanceId), "lemon-instance")
     }
     
-    func testFormEncode_preservesSafeCharacters() {
-        XCTAssertEqual(manager.formEncode("a-b.c_d~e"), "a-b.c_d~e")
+    func testRefreshLicense_legacyKeyNoNetwork_keepsLicense() async {
+        storeLegacyLicense()
+        
+        await manager.refreshLicense()
+        
+        XCTAssertTrue(manager.isLicensed)
+        XCTAssertTrue(manager.isLegacyLicense)
+        XCTAssertEqual(defaults.string(forKey: LicenseManager.Keys.instanceId), "lemon-instance")
     }
     
-    func testFormEncode_emailAddress() {
-        let encoded = manager.formEncode("user@example.com")
-        XCTAssertEqual(encoded, "user%40example.com")
+    func testRefreshLicense_legacyKeyServerError_keepsLicense() async {
+        storeLegacyLicense()
+        StubURLProtocol.responses["activate"] = (500, "{}")
+        
+        await manager.refreshLicense()
+        
+        XCTAssertTrue(manager.isLicensed)
+        XCTAssertTrue(manager.isLegacyLicense)
+    }
+    
+    func testRefreshLicense_legacyKeyForOtherProduct_revokesAndReleasesInstance() async {
+        storeLegacyLicense()
+        StubURLProtocol.responses["activate"] = (201, activationJSON(productId: "pdt_other"))
+        StubURLProtocol.responses["deactivate"] = (200, "")
+        
+        await manager.refreshLicense()
+        
+        XCTAssertFalse(manager.isLicensed)
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
+        XCTAssertEqual(StubURLProtocol.requestedPaths, ["activate", "deactivate"])
+    }
+    
+    // MARK: - Validation
+    
+    func testRefreshLicense_dodoLicenseValid_staysLicensed() async {
+        storeDodoLicense()
+        StubURLProtocol.responses["validate"] = (200, #"{"valid": true}"#)
+        
+        await manager.refreshLicense()
+        
+        XCTAssertTrue(manager.isLicensed)
+        XCTAssertNotNil(defaults.object(forKey: LicenseManager.Keys.lastValidationDate))
+        XCTAssertEqual(StubURLProtocol.requestedPaths, ["validate"])
+    }
+    
+    func testRefreshLicense_dodoLicenseNotValid_revokesLicense() async {
+        storeDodoLicense()
+        StubURLProtocol.responses["validate"] = (200, #"{"valid": false}"#)
+        
+        await manager.refreshLicense()
+        
+        XCTAssertFalse(manager.isLicensed)
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseProvider))
+    }
+    
+    // MARK: - activateLicense
+    
+    func testActivateLicense_wrongEmail_failsAndReleasesInstance() async {
+        StubURLProtocol.responses["activate"] = (201, activationJSON())
+        StubURLProtocol.responses["deactivate"] = (200, "")
+        
+        let result = await manager.activateLicense(key: " ABCD-1234 ", email: "other@example.com")
+        
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(result.error, "Email address does not match the purchase email")
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
+        XCTAssertEqual(StubURLProtocol.requestedPaths, ["activate", "deactivate"])
+    }
+    
+    func testActivateLicense_otherProduct_failsAndReleasesInstance() async {
+        StubURLProtocol.responses["activate"] = (201, activationJSON(productId: "pdt_other"))
+        StubURLProtocol.responses["deactivate"] = (200, "")
+        
+        let result = await manager.activateLicense(key: "ABCD-1234", email: "buyer@example.com")
+        
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(result.error, "This license key is not valid for SleepBar")
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
+        XCTAssertEqual(StubURLProtocol.requestedPaths, ["activate", "deactivate"])
+    }
+    
+    func testActivateLicense_keyNotFound_fails() async {
+        StubURLProtocol.responses["activate"] = (404, #"{"code": "NOT_FOUND"}"#)
+        
+        let result = await manager.activateLicense(key: "ABCD-1234", email: "buyer@example.com")
+        
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(result.error, "License key not found")
+    }
+    
+    func testActivateLicense_activationLimitReached_fails() async {
+        StubURLProtocol.responses["activate"] = (422, "{}")
+        
+        let result = await manager.activateLicense(key: "ABCD-1234", email: "buyer@example.com")
+        
+        XCTAssertFalse(result.success)
+        XCTAssertFalse(manager.isLicensed)
     }
     
     // MARK: - shouldPerformValidation
@@ -404,6 +567,7 @@ final class LicenseManagerTests: XCTestCase {
         defaults.set("ABCD-1234-EFGH-5678", forKey: LicenseManager.Keys.licenseKey)
         defaults.set("instance-123", forKey: LicenseManager.Keys.instanceId)
         defaults.set("test@example.com", forKey: LicenseManager.Keys.customerEmail)
+        defaults.set(LicenseManager.dodoProvider, forKey: LicenseManager.Keys.licenseProvider)
         defaults.set(Date(), forKey: LicenseManager.Keys.lastValidationDate)
         
         manager.checkLicenseStatus()
@@ -437,9 +601,11 @@ final class LicenseManagerTests: XCTestCase {
         defaults.set("name", forKey: LicenseManager.Keys.instanceName)
         defaults.set(Date(), forKey: LicenseManager.Keys.lastValidationDate)
         defaults.set(3, forKey: LicenseManager.Keys.consecutiveValidationFailures)
+        defaults.set(LicenseManager.dodoProvider, forKey: LicenseManager.Keys.licenseProvider)
         
         manager.clearLicenseData()
         
+        XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseProvider))
         XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.licenseKey))
         XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.instanceId))
         XCTAssertNil(defaults.string(forKey: LicenseManager.Keys.instanceName))

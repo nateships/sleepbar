@@ -14,7 +14,6 @@ class LicenseManager: ObservableObject {
     @Published var isLicensed = false
     @Published var isTrialActive = false
     @Published var daysRemainingInTrial = 0
-    @Published var licenseStatus: String?
     @Published var customerName: String?
     @Published var customerEmail: String?
     
@@ -25,27 +24,17 @@ class LicenseManager: ObservableObject {
     let maxConsecutiveFailures = 5
     private let retryDelays: [TimeInterval] = [3600, 21600, 86400] // 1h, 6h, 24h
     let defaults: UserDefaults
+    private let session: URLSession
     private var retryTask: Task<Void, Never>?
     
-    // Lemon Squeezy API
-    private let apiEndpoint = "https://api.lemonsqueezy.com/v1/licenses"
+    // Dodo Payments license API. These endpoints are public. An API key is not necessary.
+    static let apiEndpoint = "https://live.dodopayments.com/licenses"
     
-    // CRITICAL: Set these to your actual Lemon Squeezy IDs
-    // Get these from your Lemon Squeezy dashboard
-    private let expectedStoreId = 237783  // TODO: Replace with your actual store ID
-    private let expectedProductId = 681433  // TODO: Replace with your actual product ID
-    // Optional: Set this if you want to validate specific variant
-    private let expectedVariantId: Int? = nil  // TODO: Replace with variant ID if needed
+    // The Dodo Payments product ID of SleepBar. A key for a different product must not unlock the app.
+    static let productId = "pdt_0NsEmbczmtMxeP3iZxFQb"
     
-    private static let formSafeCharacters: CharacterSet = {
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
-        return allowed
-    }()
-    
-    func formEncode(_ value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: Self.formSafeCharacters) ?? value
-    }
+    // The value of Keys.licenseProvider for a license that Dodo Payments activated.
+    static let dodoProvider = "dodo"
     
     enum Keys {
         static let firstLaunchDate = "firstLaunchDate"
@@ -56,32 +45,35 @@ class LicenseManager: ObservableObject {
         static let customerEmail = "customerEmail"
         static let customerName = "customerName"
         static let consecutiveValidationFailures = "consecutiveValidationFailures"
+        static let licenseProvider = "licenseProvider"
     }
     
     private init() {
         self.defaults = .standard
+        self.session = .shared
         checkLicenseStatus()
         startPeriodicValidation()
         startTrialRefresh()
     }
     
-    init(defaults: UserDefaults) {
+    init(defaults: UserDefaults, session: URLSession) {
         self.defaults = defaults
+        self.session = session
     }
     
     // MARK: - License Status
     
     func checkLicenseStatus() {
-        if let licenseKey = defaults.string(forKey: Keys.licenseKey),
-           let instanceId = defaults.string(forKey: Keys.instanceId) {
+        if defaults.string(forKey: Keys.licenseKey) != nil,
+           defaults.string(forKey: Keys.instanceId) != nil {
             
             isLicensed = true
             customerEmail = defaults.string(forKey: Keys.customerEmail)
             customerName = defaults.string(forKey: Keys.customerName)
             
-            if shouldPerformValidation() {
+            if isLegacyLicense || shouldPerformValidation() {
                 Task {
-                    await validateLicenseWithAPI(key: licenseKey, instanceId: instanceId)
+                    await refreshLicense()
                 }
             }
             return
@@ -101,15 +93,30 @@ class LicenseManager: ObservableObject {
     
     private func startPeriodicValidation() {
         Timer.scheduledTimer(withTimeInterval: 259200, repeats: true) { [weak self] _ in
-            guard let self = self,
-                  let licenseKey = self.defaults.string(forKey: Keys.licenseKey),
-                  let instanceId = self.defaults.string(forKey: Keys.instanceId) else {
-                return
-            }
+            guard let self = self else { return }
             
             Task {
-                await self.validateLicenseWithAPI(key: licenseKey, instanceId: instanceId)
+                await self.refreshLicense()
             }
+        }
+    }
+    
+    // Versions before the move to Dodo Payments activated the license with Lemon Squeezy.
+    var isLegacyLicense: Bool {
+        defaults.string(forKey: Keys.licenseProvider) != Self.dodoProvider
+    }
+    
+    // Ask the license server about the stored license.
+    func refreshLicense() async {
+        guard let licenseKey = defaults.string(forKey: Keys.licenseKey),
+              let instanceId = defaults.string(forKey: Keys.instanceId) else {
+            return
+        }
+        
+        if isLegacyLicense {
+            await migrateLegacyLicense(key: licenseKey)
+        } else {
+            await validateLicenseWithAPI(key: licenseKey, instanceId: instanceId)
         }
     }
     
@@ -150,7 +157,22 @@ class LicenseManager: ObservableObject {
         }
     }
     
-    // MARK: - Lemon Squeezy API Integration
+    // MARK: - Dodo Payments API Integration
+    
+    struct Activation {
+        let instanceId: String
+        let productId: String?
+        let customerName: String?
+        let customerEmail: String?
+    }
+    
+    enum ActivationResult {
+        case activated(Activation)
+        // The license server refused the key. The message is for the user.
+        case rejected(String)
+        case limitReached
+        case connectivityError(String)
+    }
     
     func activateLicense(key: String, email: String) async -> (success: Bool, error: String?) {
         let normalizedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -159,101 +181,172 @@ class LicenseManager: ObservableObject {
         // Get unique instance name (computer name)
         let instanceName = Host.current().localizedName ?? "Mac"
         
-        let result = await activateLicenseWithAPI(key: normalizedKey, instanceName: instanceName)
-        
-        if result.success, let instanceId = result.instanceId, let meta = result.meta {
-            // SECURITY: Validate product/store IDs
-            if !validateProductIds(meta: meta) {
+        switch await requestActivation(key: normalizedKey, instanceName: instanceName) {
+        case .activated(let activation):
+            // SECURITY: Validate the product. If the check fails, release the instance,
+            // because a failed attempt must not use one of the activations of the key.
+            guard activation.productId == Self.productId else {
+                _ = await requestDeactivation(key: normalizedKey, instanceId: activation.instanceId)
                 return (false, "This license key is not valid for SleepBar")
             }
             
             // SECURITY: Validate customer email
-            if let customerEmail = meta["customer_email"] as? String {
-                if customerEmail.lowercased() != normalizedEmail {
-                    return (false, "Email address does not match the purchase email")
-                }
+            if let customerEmail = activation.customerEmail,
+               customerEmail.lowercased() != normalizedEmail {
+                _ = await requestDeactivation(key: normalizedKey, instanceId: activation.instanceId)
+                return (false, "Email address does not match the purchase email")
             }
             
-            defaults.set(normalizedKey, forKey: Keys.licenseKey)
-            defaults.set(instanceId, forKey: Keys.instanceId)
             defaults.set(instanceName, forKey: Keys.instanceName)
-            defaults.set(Date(), forKey: Keys.lastValidationDate)
-            defaults.set(0, forKey: Keys.consecutiveValidationFailures)
-            
-            if let customerName = meta["customer_name"] as? String {
-                defaults.set(customerName, forKey: Keys.customerName)
-            }
-            if let customerEmail = meta["customer_email"] as? String {
-                defaults.set(customerEmail, forKey: Keys.customerEmail)
-            }
+            storeActivation(activation, key: normalizedKey)
             
             await MainActor.run {
                 self.isLicensed = true
                 self.isTrialActive = false
                 self.daysRemainingInTrial = 0
-                self.customerName = meta["customer_name"] as? String
-                self.customerEmail = meta["customer_email"] as? String
+                self.customerName = activation.customerName
+                self.customerEmail = activation.customerEmail
             }
             
             TelemetryManager.shared.track("license_activated")
             
             return (true, nil)
+            
+        case .rejected(let message):
+            return (false, message)
+            
+        case .limitReached:
+            return (false, "This license key is in use on the maximum number of Macs. Deactivate it on one Mac, then try again.")
+            
+        case .connectivityError(let reason):
+            return (false, reason)
         }
-        
-        return (false, result.error ?? "Failed to activate license")
     }
     
-    func validateProductIds(meta: [String: Any]) -> Bool {
-        guard let storeId = meta["store_id"] as? Int, storeId == expectedStoreId else {
-            return false
-        }
+    private func storeActivation(_ activation: Activation, key: String) {
+        defaults.set(key, forKey: Keys.licenseKey)
+        defaults.set(activation.instanceId, forKey: Keys.instanceId)
+        defaults.set(Self.dodoProvider, forKey: Keys.licenseProvider)
+        defaults.set(Date(), forKey: Keys.lastValidationDate)
+        defaults.set(0, forKey: Keys.consecutiveValidationFailures)
         
-        guard let productId = meta["product_id"] as? Int, productId == expectedProductId else {
-            return false
+        if let customerName = activation.customerName {
+            defaults.set(customerName, forKey: Keys.customerName)
         }
+        if let customerEmail = activation.customerEmail {
+            defaults.set(customerEmail, forKey: Keys.customerEmail)
+        }
+    }
+    
+    // The Lemon Squeezy keys are imported into Dodo Payments, but the activations are not.
+    // Activate the stored key again, and the customer does not see a change.
+    private func migrateLegacyLicense(key: String) async {
+        let instanceName = defaults.string(forKey: Keys.instanceName) ?? Host.current().localizedName ?? "Mac"
         
-        if let expectedVariant = expectedVariantId {
-            guard let variantId = meta["variant_id"] as? Int, variantId == expectedVariant else {
-                return false
+        switch await requestActivation(key: key, instanceName: instanceName) {
+        case .activated(let activation):
+            guard activation.productId == Self.productId else {
+                print("[LicenseManager] Stored license key is for a different product")
+                _ = await requestDeactivation(key: key, instanceId: activation.instanceId)
+                await revokeLicense()
+                return
             }
+            
+            storeActivation(activation, key: key)
+            await MainActor.run {
+                self.customerName = self.defaults.string(forKey: Keys.customerName)
+                self.customerEmail = self.defaults.string(forKey: Keys.customerEmail)
+            }
+            
+        case .rejected(let message):
+            print("[LicenseManager] License server refused the stored license key: \(message)")
+            await revokeLicense()
+            
+        case .limitReached:
+            // An earlier attempt can use an activation and then lose the response.
+            // Keep the license, because the customer did nothing wrong.
+            print("[LicenseManager] Activation limit reached for the stored license key. Keeping license active")
+            
+        case .connectivityError(let reason):
+            // The next launch or the periodic check tries again.
+            print("[LicenseManager] Could not move the stored license key: \(reason)")
         }
-        
-        return true
     }
     
-    private func activateLicenseWithAPI(key: String, instanceName: String) async -> (success: Bool, instanceId: String?, meta: [String: Any]?, error: String?) {
-        guard let url = URL(string: "\(apiEndpoint)/activate") else {
-            return (false, nil, nil, "Invalid API endpoint")
+    private func revokeLicense() async {
+        clearLicenseData()
+        await MainActor.run {
+            self.isLicensed = false
+            self.checkTrialStatus()
+        }
+    }
+    
+    private func post(_ path: String, body: [String: String]) async throws -> (Data, HTTPURLResponse) {
+        guard let url = URL(string: "\(Self.apiEndpoint)/\(path)") else {
+            throw URLError(.badURL)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        let params = "license_key=\(formEncode(key))&instance_name=\(formEncode(instanceName))"
-        request.httpBody = params.data(using: .utf8)
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        return (data, httpResponse)
+    }
+    
+    func parseActivation(_ data: Data) -> Activation? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let instanceId = json["id"] as? String else {
+            return nil
+        }
         
+        let product = json["product"] as? [String: Any]
+        let customer = json["customer"] as? [String: Any]
+        return Activation(
+            instanceId: instanceId,
+            productId: product?["product_id"] as? String,
+            customerName: customer?["name"] as? String,
+            customerEmail: customer?["email"] as? String
+        )
+    }
+    
+    private func requestActivation(key: String, instanceName: String) async -> ActivationResult {
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await post("activate", body: ["license_key": key, "name": instanceName])
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return (false, nil, nil, "Invalid response")
-            }
-            
-            if httpResponse.statusCode == 200 {
-                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                let instance = json?["instance"] as? [String: Any]
-                let instanceId = instance?["id"] as? String
-                let meta = json?["meta"] as? [String: Any]
-                return (true, instanceId, meta, nil)
-            } else {
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                let error = json?["error"] as? String ?? "Activation failed"
-                return (false, nil, nil, error)
+            switch response.statusCode {
+            case 200, 201:
+                guard let activation = parseActivation(data) else {
+                    return .connectivityError("Activation failed: the response is not complete")
+                }
+                return .activated(activation)
+            case 403:
+                return .rejected("This license key is not active")
+            case 404:
+                return .rejected("License key not found")
+            case 422:
+                return .limitReached
+            default:
+                return .connectivityError("Activation failed (HTTP \(response.statusCode))")
             }
         } catch {
-            return (false, nil, nil, "Network error: \(error.localizedDescription)")
+            return .connectivityError("Network error: \(error.localizedDescription)")
+        }
+    }
+    
+    private func requestDeactivation(key: String, instanceId: String) async -> Bool {
+        do {
+            let (_, response) = try await post("deactivate", body: ["license_key": key, "license_key_instance_id": instanceId])
+            // 403 and 404 mean that the server does not have this instance. There is nothing to release.
+            return [200, 403, 404].contains(response.statusCode)
+        } catch {
+            print("Deactivation error: \(error)")
+            return false
         }
     }
     
@@ -281,52 +374,42 @@ class LicenseManager: ObservableObject {
     }
     
     private enum ValidationResult {
-        case valid(status: String, customerName: String?, customerEmail: String?)
-        case invalid(valid: Bool, status: String, isValidProduct: Bool)
+        case valid
+        case invalid
         case connectivityError(String)
     }
     
     private func validateLicenseWithAPI(key: String, instanceId: String) async {
         let result = await performValidationRequest(key: key, instanceId: instanceId)
         
+        if case .connectivityError(let reason) = result {
+            print("[LicenseManager] \(reason). Scheduling retries")
+            scheduleRetries(key: key, instanceId: instanceId)
+            return
+        }
+        
+        retryTask?.cancel()
+        retryTask = nil
+        await applyValidation(result)
+    }
+    
+    private func applyValidation(_ result: ValidationResult) async {
         switch result {
-        case .valid(let status, let customerName, let customerEmail):
-            retryTask?.cancel()
-            retryTask = nil
+        case .valid:
             defaults.set(Date(), forKey: Keys.lastValidationDate)
             defaults.set(0, forKey: Keys.consecutiveValidationFailures)
-            
-            if let customerName = customerName {
-                defaults.set(customerName, forKey: Keys.customerName)
-            }
-            if let customerEmail = customerEmail {
-                defaults.set(customerEmail, forKey: Keys.customerEmail)
-            }
-            
             await MainActor.run {
                 self.isLicensed = true
-                self.licenseStatus = status
-                self.customerName = customerName
-                self.customerEmail = customerEmail
                 self.isTrialActive = false
                 self.daysRemainingInTrial = 0
             }
             
-        case .invalid(let valid, let status, let isValidProduct):
-            retryTask?.cancel()
-            retryTask = nil
-            print("[LicenseManager] License invalid — valid: \(valid), status: \(status), isValidProduct: \(isValidProduct)")
-            defaults.set(0, forKey: Keys.consecutiveValidationFailures)
-            clearLicenseData()
-            await MainActor.run {
-                self.isLicensed = false
-                self.licenseStatus = status
-                self.checkTrialStatus()
-            }
+        case .invalid:
+            print("[LicenseManager] License server reports that the license is not valid")
+            await revokeLicense()
             
-        case .connectivityError(let reason):
-            print("[LicenseManager] \(reason) — scheduling retries")
-            scheduleRetries(key: key, instanceId: instanceId)
+        case .connectivityError:
+            break
         }
     }
     
@@ -338,45 +421,16 @@ class LicenseManager: ObservableObject {
                 if Task.isCancelled { return }
                 
                 let result = await performValidationRequest(key: key, instanceId: instanceId)
-                switch result {
-                case .valid(let status, let customerName, let customerEmail):
-                    defaults.set(Date(), forKey: Keys.lastValidationDate)
-                    defaults.set(0, forKey: Keys.consecutiveValidationFailures)
-                    if let customerName = customerName {
-                        defaults.set(customerName, forKey: Keys.customerName)
-                    }
-                    if let customerEmail = customerEmail {
-                        defaults.set(customerEmail, forKey: Keys.customerEmail)
-                    }
-                    await MainActor.run {
-                        self.isLicensed = true
-                        self.licenseStatus = status
-                        self.customerName = customerName
-                        self.customerEmail = customerEmail
-                        self.isTrialActive = false
-                        self.daysRemainingInTrial = 0
-                    }
-                    print("[LicenseManager] Retry \(index + 1) succeeded")
-                    return
-                    
-                case .invalid(let valid, let status, let isValidProduct):
-                    print("[LicenseManager] Retry \(index + 1) — license invalid: valid=\(valid), status=\(status), isValidProduct=\(isValidProduct)")
-                    defaults.set(0, forKey: Keys.consecutiveValidationFailures)
-                    clearLicenseData()
-                    await MainActor.run {
-                        self.isLicensed = false
-                        self.licenseStatus = status
-                        self.checkTrialStatus()
-                    }
-                    return
-                    
-                case .connectivityError(let reason):
-                    print("[LicenseManager] Retry \(index + 1)/\(retryDelays.count) failed — \(reason)")
+                if case .connectivityError(let reason) = result {
+                    print("[LicenseManager] Retry \(index + 1)/\(retryDelays.count) failed: \(reason)")
                     continue
                 }
+                
+                await applyValidation(result)
+                return
             }
             
-            // All retries exhausted — now count it as a real failure
+            // All retries exhausted. Count it as a real failure.
             if !Task.isCancelled {
                 print("[LicenseManager] All retries exhausted")
                 recordValidationFailure()
@@ -386,52 +440,19 @@ class LicenseManager: ObservableObject {
     }
     
     private func performValidationRequest(key: String, instanceId: String) async -> ValidationResult {
-        guard let url = URL(string: "\(apiEndpoint)/validate") else {
-            return .connectivityError("Invalid API endpoint")
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        
-        let params = "license_key=\(formEncode(key))&instance_id=\(formEncode(instanceId))"
-        request.httpBody = params.data(using: .utf8)
-        
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await post("validate", body: ["license_key": key, "license_key_instance_id": instanceId])
             
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-                return .connectivityError("HTTP \(statusCode)")
+            guard response.statusCode == 200 else {
+                return .connectivityError("HTTP \(response.statusCode)")
             }
             
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let valid = json["valid"] as? Bool,
-                  let licenseKeyObj = json["license_key"] as? [String: Any],
-                  let status = licenseKeyObj["status"] as? String else {
+                  let valid = json["valid"] as? Bool else {
                 return .connectivityError("Response missing expected fields")
             }
             
-            let meta = json["meta"] as? [String: Any]
-            
-            var isValidProduct = true
-            if let meta = meta {
-                isValidProduct = validateProductIds(meta: meta)
-            }
-            
-            let isActive = valid && isValidProduct && status == "active"
-            
-            if isActive {
-                return .valid(
-                    status: status,
-                    customerName: meta?["customer_name"] as? String,
-                    customerEmail: meta?["customer_email"] as? String
-                )
-            } else {
-                return .invalid(valid: valid, status: status, isValidProduct: isValidProduct)
-            }
+            return valid ? .valid : .invalid
         } catch {
             return .connectivityError("Network error: \(error.localizedDescription)")
         }
@@ -443,6 +464,7 @@ class LicenseManager: ObservableObject {
         defaults.removeObject(forKey: Keys.instanceName)
         defaults.removeObject(forKey: Keys.lastValidationDate)
         defaults.removeObject(forKey: Keys.consecutiveValidationFailures)
+        defaults.removeObject(forKey: Keys.licenseProvider)
     }
     
     func recordValidationFailure() {
@@ -456,43 +478,23 @@ class LicenseManager: ObservableObject {
             return false
         }
         
-        guard let url = URL(string: "\(apiEndpoint)/deactivate") else {
-            return false
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        
-        let params = "license_key=\(formEncode(key))&instance_id=\(formEncode(instanceId))"
-        request.httpBody = params.data(using: .utf8)
-        
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode == 200 {
-                 defaults.removeObject(forKey: Keys.licenseKey)
-                defaults.removeObject(forKey: Keys.instanceId)
-                defaults.removeObject(forKey: Keys.instanceName)
-                defaults.removeObject(forKey: Keys.lastValidationDate)
-                defaults.removeObject(forKey: Keys.customerEmail)
-                defaults.removeObject(forKey: Keys.customerName)
-                defaults.removeObject(forKey: Keys.consecutiveValidationFailures)
-                
-                TelemetryManager.shared.track("license_deactivated")
-                
-                await MainActor.run {
-                    self.checkLicenseStatus()
-                }
-                return true
+        // A Lemon Squeezy activation has no instance at Dodo Payments. There is nothing to release.
+        if !isLegacyLicense {
+            guard await requestDeactivation(key: key, instanceId: instanceId) else {
+                return false
             }
-        } catch {
-            print("Deactivation error: \(error)")
         }
         
-        return false
+        clearLicenseData()
+        defaults.removeObject(forKey: Keys.customerEmail)
+        defaults.removeObject(forKey: Keys.customerName)
+        
+        TelemetryManager.shared.track("license_deactivated")
+        
+        await MainActor.run {
+            self.checkLicenseStatus()
+        }
+        return true
     }
     
     var licenseKey: String? {
@@ -511,12 +513,12 @@ class LicenseManager: ObservableObject {
         defaults.removeObject(forKey: Keys.customerEmail)
         defaults.removeObject(forKey: Keys.customerName)
         defaults.removeObject(forKey: Keys.consecutiveValidationFailures)
+        defaults.removeObject(forKey: Keys.licenseProvider)
         
         Task { @MainActor in
             self.isLicensed = false
             self.isTrialActive = true
             self.daysRemainingInTrial = self.trialDays
-            self.licenseStatus = nil
             self.customerName = nil
             self.customerEmail = nil
         }
@@ -533,13 +535,14 @@ class LicenseManager: ObservableObject {
         defaults.removeObject(forKey: Keys.licenseKey)
         defaults.removeObject(forKey: Keys.instanceId)
         defaults.removeObject(forKey: Keys.instanceName)
+        defaults.removeObject(forKey: Keys.licenseProvider)
         
         checkLicenseStatus()
     }
     
     func generateTestLicenseKey(for email: String) -> String {
         // For testing: Generate a fake license key format
-        // In production, real keys come from Lemon Squeezy
+        // In production, real keys come from Dodo Payments
         let randomString = UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16)
         let key = stride(from: 0, to: 16, by: 4)
             .map { i in

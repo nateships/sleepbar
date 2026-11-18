@@ -71,7 +71,7 @@ Every download is signed with a Developer ID certificate and notarized by Apple.
 
 The source is here so anyone can read what the app does. Building it yourself is supported. Two things to know:
 
-- **Trial and license**: the code contains the 7-day trial and the Lemon Squeezy license check. A self-built copy behaves like the download. Buying a license supports development.
+- **Trial and license**: the code contains the 7-day trial and the Dodo Payments license check. A self-built copy behaves like the download. Buying a license supports development.
 - **Analytics**: opt-out, anonymous usage events go to a CloudKit container that belongs to the SleepBar developer team. A build signed by a different team cannot write to it. Remove the iCloud entitlement or `TelemetryManager` calls for your own build.
 
 ### Requirements
@@ -105,7 +105,7 @@ Build output goes to `build/` (gitignored). The website lives in `site/` and is 
 **Cmd+Shift+D** or "Developer Tools" in the menu:
 - **Reset Trial**: Start a fresh 7-day trial
 - **Expire Trial**: Set trial to expired
-- **Generate Test Key**: Create a fake license key (does not work with the Lemon Squeezy API)
+- **Generate Test Key**: Create a fake license key (does not work with the Dodo Payments API)
 - **Deactivate License**: Remove current license
 
 ---
@@ -204,7 +204,7 @@ sleepbar/
 │   ├── SleepWarningView.swift     # Warning popup content
 │   ├── SleepWarningWindow.swift   # Warning window manager
 │   ├── AboutView.swift            # About window
-│   ├── LicenseManager.swift       # Trial & licensing (Lemon Squeezy)
+│   ├── LicenseManager.swift       # Trial & licensing (Dodo Payments)
 │   ├── LicenseView.swift          # License activation UI
 │   ├── LaunchAtLogin.swift        # SMAppService login item
 │   ├── TelemetryManager.swift     # Opt-out CloudKit analytics
