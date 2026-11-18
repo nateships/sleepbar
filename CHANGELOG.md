@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0](https://github.com/nateships/sleepbar/compare/v1.3.1...v1.4.0) (2026-11-18)
+
+
+### Features
+
+* move license checks to Dodo Payments ([#36](https://github.com/nateships/sleepbar/issues/36)) ([b2a6296](https://github.com/nateships/sleepbar/commit/b2a62964b6ceb7f5dd55e31d8a6e3db4fcbae7b8))
+
 ## [1.3.1](https://github.com/nateships/sleepbar/compare/v1.3.0...v1.3.1) (2026-10-25)
 
 
